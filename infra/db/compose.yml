@@ -1,0 +1,37 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: goldrush-postgres
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: goldrush
+      POSTGRES_USER: goldrush
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      TZ: Asia/Seoul
+      PGTZ: Asia/Seoul
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init:/docker-entrypoint-initdb.d:ro
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U goldrush -d goldrush"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+    networks:
+      - goldrush-db-network
+
+volumes:
+  postgres-data:
+    name: goldrush-postgres-data
+
+networks:
+  goldrush-db-network:
+    name: goldrush-db-network
