@@ -22,7 +22,7 @@ CREATE TABLE mine
 CREATE TABLE app_user
 (
     id               BIGINT GENERATED ALWAYS AS IDENTITY,
-    mine_id          BIGINT,
+    mine_id          BIGINT NOT NULL,
     total_mined_gold BIGINT      NOT NULL DEFAULT 0,
     session_id       UUID        NOT NULL,
     created_at       TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -40,15 +40,12 @@ CREATE TABLE app_user
 CREATE TABLE mining_log
 (
     id         BIGINT GENERATED ALWAYS AS IDENTITY,
-    request_id BIGINT      NOT NULL,
     user_id    BIGINT      NOT NULL,
     mine_id    BIGINT      NOT NULL,
     amount     BIGINT      NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT pk_mining_log
         PRIMARY KEY (id),
-    CONSTRAINT uk_mining_log_request_id
-        UNIQUE (request_id),
     CONSTRAINT fk_mining_log_user
         FOREIGN KEY (user_id)
             REFERENCES app_user (id),

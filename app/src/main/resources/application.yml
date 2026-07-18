@@ -1,0 +1,22 @@
+spring:
+  application:
+    name: Gold-Rush-Lab
+
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    username: ${POSTGRES_USERNAME}
+    password: ${POSTGRES_PASSWORD}
+    name: ${POSTGRES_DB}
+
+  jpa:
+    generate-ddl: false
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+
