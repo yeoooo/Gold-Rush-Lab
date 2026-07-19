@@ -12,6 +12,11 @@ public class MineJpaAdapter implements MineRepository {
     private final MineJpaRepository mineJpaRepository;
 
     @Override
+    public Long save(MineEntity entity) {
+        return mineJpaRepository.save(entity).getId();
+    }
+
+    @Override
     public MineEntity findFirstNotDepleted() {
         return mineJpaRepository.findFirstByRemainingAmountGreaterThanOrderByIdAsc(0)
                 .orElseThrow(ActiveMineNotFoundException::new);

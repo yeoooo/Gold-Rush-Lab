@@ -1,6 +1,7 @@
 package io.devyeoooo.Gold_Rush_Lab.mine.repository.entity;
 
 import io.devyeoooo.Gold_Rush_Lab.comm.BaseEntity;
+import io.devyeoooo.Gold_Rush_Lab.comm.exception.MineDepletedException;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -25,5 +26,16 @@ public class MineEntity extends BaseEntity {
         }
 
         return new MineEntity(null, remainingAmount);
+    }
+
+    public void mine(Long amount) {
+        if(amount == null || amount <= 0) {
+            throw new IllegalArgumentException("채굴량은 양수여야합니다..");
+        }
+
+        if (this.remainingAmount - amount < 0) {
+            throw new MineDepletedException();
+        }
+        this.remainingAmount -= amount;
     }
 }
