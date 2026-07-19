@@ -21,7 +21,17 @@ server:
     context-path: "/api"
 
 management:
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      percentiles:
+        http.server.requests: 0.95, 0.99
   endpoints:
     web:
       exposure:
         include: health,prometheus
+
+gold-rush:
+  mining:
+    lock-strategy: none
