@@ -1,0 +1,8 @@
+package io.devyeoooo.Gold_Rush_Lab.comm.exception;
+
+public class UserNotFoundException extends RuntimeException {
+
+    public UserNotFoundException() {
+        super("사용자를 찾을 수 없습니다.");
+    }
+}
