@@ -40,4 +40,11 @@ public class UserEntity extends BaseEntity {
                 .mine(mine)
                 .build();
     }
+
+    public void addGold(Long gold) {
+        if (gold == null || gold <= 0) {
+            throw new IllegalArgumentException("양수인 Gold 추가할 수 있습니다.");
+        }
+        this.totalMinedGold += gold;
+    }
 }
