@@ -47,6 +47,19 @@ public class MineServiceImpl implements MineService {
     }
 
     /**
+     * id 기반 Mine 조회
+     *
+     * 난독화는 되어있지 않음.
+     *
+     * @param id
+     * @return
+     */
+    @Override
+    public MineEntity findById(Long id) {
+        return mineRepository.findById(id);
+    }
+
+    /**
      * 채굴 함수
      *
      * 1. sessionId 기반 유저 조회, 유저의 금광 조회

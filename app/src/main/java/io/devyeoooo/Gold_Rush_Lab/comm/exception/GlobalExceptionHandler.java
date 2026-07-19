@@ -27,6 +27,20 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 .body(ApiResponse.fail("ACTIVE_MINE_NOT_FOUND", exception.getMessage()));
     }
 
+    @ExceptionHandler(MineNotFoundException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMineNotFound(MineNotFoundException exception) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.fail("MINE_NOT_FOUND", exception.getMessage()));
+    }
+
+    @ExceptionHandler(InvalidRequestParameterException.class)
+    public ResponseEntity<ApiResponse<Void>> handleInvalidRequestParameter(
+            InvalidRequestParameterException exception
+    ) {
+        return ResponseEntity.badRequest()
+                .body(ApiResponse.fail("INVALID_REQUEST_PARAMETER", exception.getMessage()));
+    }
+
     @ExceptionHandler(MineDepletedException.class)
     public ResponseEntity<ApiResponse<Void>> handleMineDepleted(MineDepletedException exception) {
         return ResponseEntity.status(HttpStatus.CONFLICT)

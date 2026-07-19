@@ -1,6 +1,7 @@
 package io.devyeoooo.Gold_Rush_Lab.mine.repository;
 
 import io.devyeoooo.Gold_Rush_Lab.comm.exception.ActiveMineNotFoundException;
+import io.devyeoooo.Gold_Rush_Lab.comm.exception.MineNotFoundException;
 import io.devyeoooo.Gold_Rush_Lab.mine.repository.entity.MineEntity;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
@@ -20,5 +21,11 @@ public class MineJpaAdapter implements MineRepository {
     public MineEntity findFirstNotDepleted() {
         return mineJpaRepository.findFirstByRemainingAmountGreaterThanOrderByIdAsc(0)
                 .orElseThrow(ActiveMineNotFoundException::new);
+    }
+
+    @Override
+    public MineEntity findById(Long id) {
+        return mineJpaRepository.findById(id)
+                .orElseThrow(MineNotFoundException::new);
     }
 }

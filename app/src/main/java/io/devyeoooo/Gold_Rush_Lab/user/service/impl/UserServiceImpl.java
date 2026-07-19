@@ -1,5 +1,6 @@
 package io.devyeoooo.Gold_Rush_Lab.user.service.impl;
 
+import io.devyeoooo.Gold_Rush_Lab.comm.exception.ActiveMineNotFoundException;
 import io.devyeoooo.Gold_Rush_Lab.mine.repository.MineRepository;
 import io.devyeoooo.Gold_Rush_Lab.mine.repository.entity.MineEntity;
 import io.devyeoooo.Gold_Rush_Lab.user.repository.UserRepository;
@@ -29,6 +30,17 @@ public class UserServiceImpl implements UserService {
     @Transactional
     public Long create() {
         MineEntity foundMine = mineRepository.findFirstNotDepleted();
+        return userRepository.save(UserEntity.create(foundMine)).getId();
+    }
+
+    @Override
+    @Transactional
+    public Long create(Long mineId) {
+        MineEntity foundMine = mineRepository.findById(mineId);
+        if (foundMine.getRemainingAmount() <= 0) {
+            throw new ActiveMineNotFoundException();
+        }
+
         return userRepository.save(UserEntity.create(foundMine)).getId();
     }
 

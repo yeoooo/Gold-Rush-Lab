@@ -6,4 +6,5 @@ public interface MineRepository {
     Long save(MineEntity entity);
 
     MineEntity findFirstNotDepleted();
+    MineEntity findById(Long id);
 }

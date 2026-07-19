@@ -9,5 +9,6 @@ public interface MineService {
 
     MineEntity findFirstNotDepleted();
 
+    MineEntity findById(Long id);
     void mine(UUID sessionId, Long amount);
 }

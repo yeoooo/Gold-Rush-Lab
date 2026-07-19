@@ -6,6 +6,7 @@ import java.util.UUID;
 
 public interface UserService {
     Long create();
+    Long create(Long mineId);
     UserEntity findById(Long id);
     UserEntity findBySessionId(UUID sessionId);
 }

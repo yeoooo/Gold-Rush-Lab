@@ -19,7 +19,8 @@ public class UserController {
 
     @PostMapping("/v01/user/signin")
     public ApiResponse<SigninDto> signin(
-            @RequestParam(required = false) UUID sessionId
+            @RequestParam(required = false) UUID sessionId,
+            @RequestParam Long mineId
     ) {
         UserEntity target;
 
@@ -28,7 +29,7 @@ public class UserController {
             target = userService.findBySessionId(sessionId);
         // 입력받은 세션 ID가 존재하지 않으면 생성
         }else{
-            Long createdId = userService.create();
+            Long createdId = userService.create(mineId);
             target = userService.findById(createdId);
         }
         return ApiResponse.success(new SigninDto(target.getSessionId().toString()));
