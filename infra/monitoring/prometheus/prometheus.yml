@@ -1,9 +1,15 @@
 global:
   scrape_interval: 5s
+  evaluation_interval: 5s
 
 scrape_configs:
-  - job_name: gold-rush-app
-    metrics_path: /api/actuator/prometheus
+  - job_name: "gold-rush-app"
+    metrics_path: "/api/actuator/prometheus"
+
     static_configs:
       - targets:
-          - host.docker.internal:8080
+          - "host.docker.internal:8080"
+
+        labels:
+          application: "gold-rush-lab"
+          environment: "local"
