@@ -2,66 +2,65 @@ services:
   prometheus:
     image: prom/prometheus:latest
     container_name: gold-rush-prometheus
-
+    restart: unless-stopped
     ports:
       - "${PROMETHEUS_PORT:-9090}:9090"
-
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus-storage:/prometheus
-
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
       - "--web.enable-lifecycle"
-
     healthcheck:
-      test:
-        [
-          "CMD",
-          "wget",
-          "--spider",
-          "-q",
-          "http://localhost:9090/-/ready"
-        ]
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/-/ready"]
       interval: 5s
       timeout: 3s
       retries: 10
       start_period: 5s
-
-    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - gold-rush-monitoring
 
   grafana:
     image: grafana/grafana:latest
     container_name: gold-rush-grafana
-
+    restart: unless-stopped
     ports:
       - "${GRAFANA_PORT:-3000}:3000"
-
     environment:
-      GF_SECURITY_ADMIN_USER: "${GRAFANA_ADMIN_USER:-admin}"
-      GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_ADMIN_PASSWORD:-admin}"
-
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
     volumes:
       - grafana-storage:/var/lib/grafana
 
+      # Prometheus 데이터소스 자동 등록
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+
+      # Dashboard provider 자동 등록
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+
+      # 실제 Dashboard JSON
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
     depends_on:
       prometheus:
         condition: service_healthy
-
     healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "wget --spider -q http://localhost:3000/api/health || exit 1"
-        ]
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:3000/api/health || exit 1"]
       interval: 5s
       timeout: 3s
       retries: 10
       start_period: 10s
-
-    restart: unless-stopped
+    networks:
+      - gold-rush-monitoring
 
 volumes:
   prometheus-storage:
   grafana-storage:
+
+networks:
+  gold-rush-monitoring:
+    name: gold-rush-monitoring
