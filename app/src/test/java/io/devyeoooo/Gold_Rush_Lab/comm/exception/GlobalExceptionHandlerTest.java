@@ -56,6 +56,13 @@ class GlobalExceptionHandlerTest {
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("MINE_DEPLETED")));
     }
 
+    @Test
+    void 광산을_찾을_수_없으면_찾을_수_없음_응답을_반환한다() throws Exception {
+        mockMvc.perform(get("/test/mine/not-found"))
+                .andExpect(status().isNotFound())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("MINE_NOT_FOUND")));
+    }
+
     @RestController
     @RequestMapping("/test")
     private static class TestController {
@@ -72,6 +79,11 @@ class GlobalExceptionHandlerTest {
         @PostMapping("/mine/depleted")
         void mineDepleted() {
             throw new MineDepletedException();
+        }
+
+        @GetMapping("/mine/not-found")
+        void mineNotFound() {
+            throw new MineNotFoundException();
         }
     }
 }

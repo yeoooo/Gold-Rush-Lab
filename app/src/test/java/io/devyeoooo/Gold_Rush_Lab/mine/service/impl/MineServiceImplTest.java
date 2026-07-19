@@ -14,6 +14,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -48,5 +49,16 @@ class MineServiceImplTest {
         verify(userRepository).findBySessionId(sessionId);
         assertEquals(99L, mine.getRemainingAmount());
         assertEquals(1L, user.getTotalMinedGold());
+    }
+
+    @Test
+    void 식별자로_광산을_조회한다() {
+        MineEntity mine = MineEntity.create(100L);
+        when(mineRepository.findById(1L)).thenReturn(mine);
+
+        MineEntity found = mineService.findById(1L);
+
+        assertSame(mine, found);
+        verify(mineRepository).findById(1L);
     }
 }

@@ -1,6 +1,7 @@
 package io.devyeoooo.Gold_Rush_Lab.mine.repository;
 
 import io.devyeoooo.Gold_Rush_Lab.comm.exception.ActiveMineNotFoundException;
+import io.devyeoooo.Gold_Rush_Lab.comm.exception.MineNotFoundException;
 import io.devyeoooo.Gold_Rush_Lab.mine.repository.entity.MineEntity;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -47,5 +48,22 @@ class MineJpaAdapterTest {
                 ActiveMineNotFoundException.class,
                 mineJpaAdapter::findFirstNotDepleted
         );
+    }
+
+    @Test
+    void 식별자로_광산을_조회한다() {
+        MineEntity mine = MineEntity.create(100L);
+        when(mineJpaRepository.findById(1L)).thenReturn(Optional.of(mine));
+
+        MineEntity found = mineJpaAdapter.findById(1L);
+
+        assertSame(mine, found);
+    }
+
+    @Test
+    void 식별자의_광산이_없으면_광산_미존재_예외가_발생한다() {
+        when(mineJpaRepository.findById(1L)).thenReturn(Optional.empty());
+
+        assertThrows(MineNotFoundException.class, () -> mineJpaAdapter.findById(1L));
     }
 }

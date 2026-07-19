@@ -18,6 +18,7 @@ import java.util.UUID;
 
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -30,6 +31,7 @@ import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standal
 class MineControllerTest {
 
     private static final String MINE_URL = "/v01/mine";
+    private static final String CREATE_MINE_URL = "/mines";
 
     @Mock
     private UserService userService;
@@ -44,6 +46,35 @@ class MineControllerTest {
         mockMvc = standaloneSetup(new MineController(userService, mineService))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
+    }
+
+    @Test
+    void 광산을_생성하고_생성된_광산을_반환한다() throws Exception {
+        MineEntity mine = mock(MineEntity.class);
+        when(mineService.create(100L)).thenReturn(1L);
+        when(mineService.findById(1L)).thenReturn(mine);
+        when(mine.getId()).thenReturn(1L);
+        when(mine.getRemainingAmount()).thenReturn(100L);
+
+        mockMvc.perform(post(CREATE_MINE_URL).param("amount", "100"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.mineId").value(1))
+                .andExpect(jsonPath("$.data.remainingAmount").value(100));
+
+        verify(mineService).create(100L);
+        verify(mineService).findById(1L);
+    }
+
+    @Test
+    void 광산_잔량이_음수면_잘못된_요청을_반환한다() throws Exception {
+        mockMvc.perform(post(CREATE_MINE_URL).param("amount", "-1"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString(
+                        "INVALID_REQUEST_PARAMETER"
+                )));
+
+        verify(mineService, never()).create(-1L);
     }
 
     @Test

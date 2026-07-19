@@ -66,6 +66,32 @@ class UserServiceImplTest {
     }
 
     @Test
+    void 지정한_활성_광산으로_사용자를_생성한다() {
+        MineEntity mine = MineEntity.create(100L);
+        UserEntity savedUser = mock(UserEntity.class);
+        when(savedUser.getId()).thenReturn(1L);
+        when(mineRepository.findById(10L)).thenReturn(mine);
+        when(userRepository.save(any(UserEntity.class))).thenReturn(savedUser);
+
+        Long createdId = userService.create(10L);
+
+        ArgumentCaptor<UserEntity> captor = ArgumentCaptor.forClass(UserEntity.class);
+        verify(userRepository).save(captor.capture());
+        assertEquals(1L, createdId);
+        assertSame(mine, captor.getValue().getMine());
+    }
+
+    @Test
+    void 지정한_광산이_고갈되었으면_사용자를_저장하지_않는다() {
+        MineEntity mine = MineEntity.create(0L);
+        when(mineRepository.findById(10L)).thenReturn(mine);
+
+        assertThrows(ActiveMineNotFoundException.class, () -> userService.create(10L));
+
+        verify(userRepository, never()).save(any(UserEntity.class));
+    }
+
+    @Test
     void 세션_식별자로_사용자를_조회한다() {
         UUID sessionId = UUID.randomUUID();
         UserEntity user = mock(UserEntity.class);
