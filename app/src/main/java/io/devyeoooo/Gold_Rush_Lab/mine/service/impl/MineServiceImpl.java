@@ -5,11 +5,18 @@ import io.devyeoooo.Gold_Rush_Lab.mine.repository.entity.MineEntity;
 import io.devyeoooo.Gold_Rush_Lab.mine.service.MineService;
 import io.devyeoooo.Gold_Rush_Lab.mining_log.repository.MiningLogRepository;
 import io.devyeoooo.Gold_Rush_Lab.mining_log.repository.entity.MiningLogEntity;
+import io.devyeoooo.Gold_Rush_Lab.observability.LockStrategy;
+import io.devyeoooo.Gold_Rush_Lab.observability.MiningFailureClassifier;
+import io.devyeoooo.Gold_Rush_Lab.observability.MiningFailureType;
+import io.devyeoooo.Gold_Rush_Lab.observability.MiningMetrics;
 import io.devyeoooo.Gold_Rush_Lab.user.repository.UserRepository;
 import io.devyeoooo.Gold_Rush_Lab.user.repository.entity.UserEntity;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.UUID;
 
@@ -20,6 +27,11 @@ public class MineServiceImpl implements MineService {
     private final MineRepository mineRepository;
     private final UserRepository userRepository;
     private final MiningLogRepository miningLogRepository;
+    private final MiningMetrics miningMetrics;
+    private final MiningFailureClassifier miningFailureClassifier;
+
+    @Value("${gold-rush.mining.lock-strategy:none}")
+    private String configuredLockStrategy;
 
     /**
      * Mine 생성 함수
@@ -73,14 +85,45 @@ public class MineServiceImpl implements MineService {
     @Override
     @Transactional
     public void mine(UUID sessionId, Long amount) {
-        UserEntity foundUser = userRepository.findBySessionId(sessionId);
-        MineEntity foundMine = foundUser.getMine();
+        LockStrategy strategy = LockStrategy.from(configuredLockStrategy);
+        try {
+            UserEntity foundUser = userRepository.findBySessionId(sessionId);
+            MineEntity foundMine = foundUser.getMine();
 
-        foundMine.mine(amount);
-        foundUser.addGold(amount);
+            foundMine.mine(amount);
+            foundUser.addGold(amount);
 
-        miningLogRepository.save(
-                MiningLogEntity.create(foundUser, foundMine, amount)
-        );
+            miningLogRepository.save(
+                    MiningLogEntity.create(foundUser, foundMine, amount)
+            );
+            recordSuccessAfterCommit(strategy);
+        } catch (RuntimeException exception) {
+            MiningFailureType failureType = miningFailureClassifier.classify(exception);
+            miningMetrics.recordFailure(strategy, failureType);
+            throw exception;
+        }
+    }
+
+    private void recordSuccessAfterCommit(LockStrategy strategy) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            // 관리되는 트랜잭션 밖에서 직접 호출된 경우 메서드가 반환되면 처리가 완료된 것으로 본다.
+            miningMetrics.incrementMiningSuccess(strategy);
+            return;
+        }
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                miningMetrics.incrementMiningSuccess(strategy);
+            }
+
+            @Override
+            public void afterCompletion(int status) {
+                if (status != TransactionSynchronization.STATUS_COMMITTED) {
+                    // 커밋 단계의 실패는 애플리케이션 예외 유형을 안정적으로 확인할 수 없다.
+                    miningMetrics.recordFailure(strategy, MiningFailureType.UNKNOWN);
+                }
+            }
+        });
     }
 }
