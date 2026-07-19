@@ -15,7 +15,7 @@
       }
     ]
   },
-  "description": "Gold Rush Lab application, JVM, and connection pool metrics. Sections marked Future require gold_rush_* custom instrumentation planned for a later version and show No data until it is implemented.",
+  "description": "Gold Rush Lab application, JVM, connection pool, and mining metrics. Panels for lock wait and optimistic retry show No data until the corresponding lock strategy is implemented. Sections marked Future require additional custom instrumentation.",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -293,7 +293,7 @@
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 26 },
       "id": 17,
       "panels": [],
-      "title": "[Future] Concurrency Outcomes - requires gold_rush_* instrumentation",
+      "title": "Concurrency Outcomes",
       "type": "row"
     },
     {
@@ -302,7 +302,7 @@
       "gridPos": { "h": 7, "w": 4, "x": 0, "y": 27 },
       "id": 18,
       "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto", "wideLayout": true },
-      "targets": [{ "editorMode": "code", "expr": "sum(rate(gold_rush_lock_wait_seconds_sum[$__rate_interval])) / clamp_min(sum(rate(gold_rush_lock_wait_seconds_count[$__rate_interval])), 1e-9)", "instant": true, "legendFormat": "Average wait", "range": false, "refId": "A" }],
+      "targets": [{ "editorMode": "code", "expr": "sum(rate(gold_rush_mining_lock_wait_seconds_sum[$__rate_interval])) / clamp_min(sum(rate(gold_rush_mining_lock_wait_seconds_count[$__rate_interval])), 1e-9)", "instant": true, "legendFormat": "Average wait", "range": false, "refId": "A" }],
       "title": "Lock Wait",
       "type": "stat"
     },
@@ -312,7 +312,7 @@
       "gridPos": { "h": 7, "w": 4, "x": 4, "y": 27 },
       "id": 19,
       "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto", "wideLayout": true },
-      "targets": [{ "editorMode": "code", "expr": "sum(rate(gold_rush_optimistic_retry_total[$__rate_interval]))", "instant": true, "legendFormat": "Retries/s", "range": false, "refId": "A" }],
+      "targets": [{ "editorMode": "code", "expr": "sum(rate(gold_rush_optimistic_lock_retry_total[$__rate_interval]))", "instant": true, "legendFormat": "Retries/s", "range": false, "refId": "A" }],
       "title": "Optimistic Retry",
       "type": "stat"
     },
@@ -322,7 +322,7 @@
       "gridPos": { "h": 7, "w": 4, "x": 8, "y": 27 },
       "id": 20,
       "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto", "wideLayout": true },
-      "targets": [{ "editorMode": "code", "expr": "sum(rate(gold_rush_timeout_total[$__rate_interval]))", "instant": true, "legendFormat": "Timeouts/s", "range": false, "refId": "A" }],
+      "targets": [{ "editorMode": "code", "expr": "sum(rate(gold_rush_lock_timeout_total[$__rate_interval]))", "instant": true, "legendFormat": "Timeouts/s", "range": false, "refId": "A" }],
       "title": "Timeout",
       "type": "stat"
     },
