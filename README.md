@@ -111,8 +111,8 @@ MiningLogEntity
 
 - [x] Spring Boot, PostgreSQL, VM 환경 구성
 - [x] 기반 코드 작성
-- [ ] 기본 채굴 API
-- [ ] Integration Test
+- [x] 기본 채굴 API
+- [x] Integration Test
 - [ ] 동시성 정합성 테스트
 - [ ] 부하 테스트
 - [ ] 핫스팟 스트레스 테스트
