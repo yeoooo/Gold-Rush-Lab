@@ -101,6 +101,31 @@ MiningLogEntity
 
 > 현재 두 Compose 설정의 환경 변수 이름과 애플리케이션 datasource 설정은 완전히 통일되지 않은 상태입니다.
 
+## Container Image
+
+`main` 브랜치나 `v*` 태그를 GitHub에 푸시하면 GitHub Actions가 애플리케이션 이미지를 빌드하여 GHCR에 게시합니다.
+
+```bash
+docker pull ghcr.io/yeoooo/gold-rush-lab:latest
+```
+
+비공개 패키지는 먼저 GitHub PAT로 로그인해야 합니다.
+
+```bash
+echo "$GHCR_TOKEN" | docker login ghcr.io -u yeoooo --password-stdin
+```
+
+컨테이너 실행 시 데이터베이스 접속 정보를 환경 변수로 전달합니다.
+
+```bash
+docker run --rm -p 8080:8080 \
+  -e POSTGRES_URL=jdbc:postgresql://host.docker.internal:5432/goldrush \
+  -e POSTGRES_USER=postgres \
+  -e POSTGRES_PASSWORD=postgres \
+  -e POSTGRES_DB=goldrush \
+  ghcr.io/yeoooo/gold-rush-lab:latest
+```
+
 ---
 
 ## Roadmap
