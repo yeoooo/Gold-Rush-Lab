@@ -25,9 +25,11 @@ function optionalPositiveInteger(name) {
 
 export const config = Object.freeze({
     baseUrl: (__ENV.BASE_URL || 'http://localhost:8080/api').replace(/\/$/, ''),
-    mineAmount: positiveInteger('MINE_AMOUNT', 1000000000),
+    mineAmount: positiveInteger('MINE_AMOUNT', 100000),
     userCount: positiveInteger('USER_COUNT', 100),
+    iterations: positiveInteger('ITERATIONS', 100),
     timeout: __ENV.TIMEOUT || '5s',
+    hotspotMaxDuration: __ENV.HOTSPOT_MAX_DURATION || '1m',
     hotspotMineId: optionalPositiveInteger('HOTSPOT_MINE_ID'),
     stressMaxVu: positiveInteger('STRESS_MAX_VU', 1000),
     soakVus: positiveInteger('SOAK_VUS', 50),

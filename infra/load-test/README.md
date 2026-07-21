@@ -8,6 +8,7 @@ Gold Rush Lab의 동시성 동작과 버전별 성능을 같은 조건에서 비
 
 ```sh
 cd infra/load-test
+cp .env.example .env
 k6 version
 ```
 
@@ -23,7 +24,7 @@ k6 run scenarios/stress.js
 k6 run scenarios/soak.js
 ```
 
-`run.sh`를 사용해도 동일합니다.
+`run.sh`를 사용해도 동일합니다. `run.sh`는 같은 디렉터리의 `.env` 파일을 자동으로 불러옵니다.
 
 ```sh
 ./run.sh smoke
@@ -46,15 +47,17 @@ k6 run -e BASE_URL=http://localhost:8080/api -e USER_COUNT=100 \
 | 이름 | 기본값 | 설명 |
 | --- | ---: | --- |
 | `BASE_URL` | `http://localhost:8080/api` | context path를 포함한 테스트 대상 애플리케이션 주소 |
-| `MINE_AMOUNT` | `1000000000` | setup에서 생성하는 광산의 초기 금 수량 |
+| `MINE_AMOUNT` | `100000` | setup에서 생성하는 광산의 초기 금 수량 |
 | `USER_COUNT` | `100` | setup에서 생성할 사용자 수. Hot Spot에서는 VU 수도 결정 |
+| `ITERATIONS` | `100` | Hot Spot에서 VU 한 개가 실행할 반복 횟수 |
 | `TIMEOUT` | `5s` | 각 HTTP 요청의 timeout |
+| `HOTSPOT_MAX_DURATION` | `1m` | Hot Spot 시나리오의 최대 실행 시간 |
 | `HOTSPOT_MINE_ID` | 미지정 | Hot Spot에서 새 광산 대신 사용할 기존 광산 ID |
 | `STRESS_MAX_VU` | `1000` | Stress Test의 최대 VU 수 |
 | `SOAK_VUS` | `50` | Soak Test의 동시 VU 수 |
 | `SOAK_DURATION` | `2h` | Soak Test 실행 시간 |
 
-`MINE_AMOUNT`, `USER_COUNT`, `HOTSPOT_MINE_ID`, `STRESS_MAX_VU`, `SOAK_VUS`는 양의 정수여야 합니다. 장시간 또는 고부하 테스트에서는 테스트 도중 광산이 고갈되지 않도록 `MINE_AMOUNT`를 예상 요청 수보다 크게 설정합니다.
+`MINE_AMOUNT`, `USER_COUNT`, `ITERATIONS`, `HOTSPOT_MINE_ID`, `STRESS_MAX_VU`, `SOAK_VUS`는 양의 정수여야 합니다. 장시간 또는 고부하 테스트에서는 테스트 도중 광산이 고갈되지 않도록 `MINE_AMOUNT`를 예상 요청 수보다 크게 설정합니다.
 
 ## 테스트 목적
 
@@ -64,7 +67,7 @@ k6 run -e BASE_URL=http://localhost:8080/api -e USER_COUNT=100 \
 
 ### Hot Spot Concurrency Test
 
-가장 핵심적인 동시성 테스트입니다. setup에서 하나의 광산과 `USER_COUNT`명의 사용자를 준비합니다. `per-vu-iterations` executor가 사용자 수만큼 VU를 만들고, 각 VU는 전역 VU ID에 대응하는 서로 다른 `sessionId`로 단 한 번 채굴합니다. 모든 세션은 같은 `mineId`로 생성되므로 요청은 동일한 Mine row에 집중됩니다. iteration 사이의 `sleep`은 없습니다.
+가장 핵심적인 동시성 테스트입니다. setup에서 하나의 광산과 `USER_COUNT`명의 사용자를 준비합니다. `per-vu-iterations` executor가 사용자 수만큼 VU를 만들고, 각 VU는 전역 VU ID에 대응하는 서로 다른 `sessionId`로 `ITERATIONS`회 채굴합니다. 모든 세션은 같은 `mineId`로 생성되므로 요청은 동일한 Mine row에 집중됩니다. iteration 사이의 `sleep`은 없습니다. 실행 시간은 `HOTSPOT_MAX_DURATION`을 초과하지 않습니다.
 
 기존 광산을 대상으로 반복 비교하려면 `HOTSPOT_MINE_ID`를 지정할 수 있습니다. 지정하지 않으면 setup이 새 광산을 만듭니다.
 

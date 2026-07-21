@@ -11,8 +11,8 @@ export const options = {
         hotspot: {
             executor: 'per-vu-iterations',
             vus: config.userCount,
-            iterations: 1,
-            maxDuration: '1m',
+            iterations: config.iterations,
+            maxDuration: config.hotspotMaxDuration,
         },
     },
     thresholds: {

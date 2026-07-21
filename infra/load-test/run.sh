@@ -3,6 +3,11 @@
 set -eu
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+
+set -a
+. "$SCRIPT_DIR/.env"
+set +a
+
 SCENARIO=${1:-}
 
 if [ -z "$SCENARIO" ]; then
