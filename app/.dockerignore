@@ -2,4 +2,4 @@
 build
 .env
 *.log
-compose.yaml
+compose.yml
