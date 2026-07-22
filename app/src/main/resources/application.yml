@@ -12,7 +12,7 @@ spring:
     password: ${POSTGRES_PASSWORD}
     name: ${POSTGRES_DB}
     hikari:
-      maximum-pool-size: 50
+      maximum-pool-size: ${DB_CONNECTION_POOL_SIZE:50}
 
   jpa:
     generate-ddl: false

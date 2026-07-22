@@ -97,13 +97,14 @@ MiningLogEntity
 | `POSTGRES_USER` | 애플리케이션에서 사용할 PostgreSQL 사용자명 |
 | `POSTGRES_PASSWORD` | PostgreSQL 비밀번호 |
 | `POSTGRES_DB` | PostgreSQL 데이터베이스 이름 |
+| `DB_CONNECTION_POOL_SIZE` | HikariCP 최대 데이터베이스 커넥션 수 (기본값: `50`) |
 
 - 애플리케이션용 Compose 파일: `app/compose.yml`
 - 독립 PostgreSQL 인프라 Compose 파일: `infra/db/compose.yml`
 - 초기 DB 스키마: `infra/db/init/001-schema.sql`
 - 애플리케이션 포트: `8080`
 
-부하 테스트를 위해 HikariCP의 최대 커넥션 풀 크기는 `50`으로 설정되어 있습니다.
+HikariCP의 최대 커넥션 풀 크기는 `DB_CONNECTION_POOL_SIZE`로 조정할 수 있으며 기본값은 `50`입니다.
 
 > 현재 두 Compose 설정의 환경 변수 이름과 애플리케이션 datasource 설정은 완전히 통일되지 않은 상태입니다.
 
@@ -142,6 +143,7 @@ cd app
 POSTGRES_DB=goldrush \
 POSTGRES_USER=goldrush \
 POSTGRES_PASSWORD=change-me \
+DB_CONNECTION_POOL_SIZE=30 \
 docker compose --profile container up -d
 ```
 
@@ -151,6 +153,7 @@ docker compose --profile container up -d
 | --- | --- | --- |
 | `APP_IMAGE_TAG` | `v0.1` | 실행할 애플리케이션 이미지 태그 |
 | `APP_PORT` | `8080` | 호스트에 노출할 애플리케이션 포트 |
+| `DB_CONNECTION_POOL_SIZE` | `50` | HikariCP 최대 데이터베이스 커넥션 수 |
 
 ## Load Test
 
