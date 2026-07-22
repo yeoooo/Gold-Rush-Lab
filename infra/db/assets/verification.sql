@@ -1,11 +1,7 @@
 -- DB 초기화
-TRUNCATE app_user CASCADE ;
-TRUNCATE mine CASCADE ;
-TRUNCATE mining_log CASCADE ;
-
-ALTER SEQUENCE app_user_id_seq RESTART WITH 1;
-ALTER SEQUENCE mine_id_seq RESTART WITH 1;
-ALTER SEQUENCE mining_log_id_seq RESTART WITH 1;
+TRUNCATE TABLE app_user, mine, mining_log
+    RESTART IDENTITY
+    CASCADE;
 
 -- 통합
 WITH w_m AS (
