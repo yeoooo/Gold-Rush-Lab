@@ -17,7 +17,7 @@ public class UserController {
 
     private final UserService userService;
 
-    @PostMapping("/v01/user/signin")
+    @PostMapping("/user/signin")
     public ApiResponse<SigninDto> signin(
             @RequestParam(required = false) UUID sessionId,
             @RequestParam Long mineId

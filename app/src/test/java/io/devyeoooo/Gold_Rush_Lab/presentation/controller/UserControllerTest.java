@@ -29,7 +29,7 @@ import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standal
 @ExtendWith(MockitoExtension.class)
 class UserControllerTest {
 
-    static final String SIGNIN_URL = "/v01/user/signin";
+    static final String SIGNIN_URL = "/user/signin";
     static final String MINE_ID = "10";
 
     @Mock

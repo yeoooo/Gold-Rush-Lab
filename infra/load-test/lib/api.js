@@ -24,7 +24,7 @@ export function createMine(amount) {
 }
 
 export function signin(mineId) {
-    return post('/v01/user/signin', { mineId }, 'signin');
+    return post('/user/signin', { mineId }, 'signin');
 }
 
 export function mine(sessionId) {

@@ -94,7 +94,7 @@ k6 run --out csv=results/capacity.csv scenarios/capacity.js
 모든 시나리오는 `lib/setup.js`의 공통 함수를 사용합니다.
 
 1. `POST /mines?amount=...`로 광산 하나를 생성합니다.
-2. 같은 `mineId`로 `POST /v01/user/signin`을 N번 호출합니다.
+2. 같은 `mineId`로 `POST /user/signin`을 N번 호출합니다.
 3. 응답에서 `sessionId`를 모읍니다.
 4. `{ mineId, sessions }`를 각 VU에 전달합니다.
 
