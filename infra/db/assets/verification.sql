@@ -5,7 +5,7 @@ TRUNCATE TABLE app_user, mine, mining_log
 
 -- 통합
 WITH w_m AS (
-    SELECT m.id AS mine_id, COUNT(m.id) * 100 AS initial_remaining, m.created_at
+    SELECT m.id AS mine_id, COUNT(m.id) * 100 AS initial_remaining, m.remaining_amount, m.created_at
     FROM mine m
              JOIN app_user au ON m.id = au.mine_id
     GROUP BY m.id
@@ -13,12 +13,13 @@ WITH w_m AS (
 SELECT wm.mine_id AS "광산_ID"
      , wm.initial_remaining "초기_잔량"
      , SUM(ml.amount) AS "실제_채굴량"
-     , wm.initial_remaining - SUM(ml.amount) AS "실제_잔량"
+     , wm.initial_remaining - SUM(ml.amount) AS "계산_잔량"
+     , wm.remaining_amount AS "실제_잔량"
      , wm.created_at AS "광산_생성일"
 FROM w_m wm
          JOIN mining_log ml
               ON wm.mine_id = ml.mine_id
-GROUP BY wm.mine_id, wm.created_at, wm.initial_remaining;
+GROUP BY wm.mine_id, wm.created_at, wm.initial_remaining, wm.remaining_amount;
 
 -- 실제 채굴량
 SELECT COUNT(id)
