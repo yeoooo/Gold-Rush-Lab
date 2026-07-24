@@ -11,8 +11,6 @@ FROM pg_stat_activity
 WHERE datname='goldrush'
 GROUP BY wait_event_type, wait_event
 ORDER BY count(*) DESC;
-SELECT *
-FROM pg_stat_activity;
 
 -- 통합
 WITH w_m AS (
