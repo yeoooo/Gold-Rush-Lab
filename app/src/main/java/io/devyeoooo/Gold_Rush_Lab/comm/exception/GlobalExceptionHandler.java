@@ -2,6 +2,7 @@ package io.devyeoooo.Gold_Rush_Lab.comm.exception;
 
 import io.devyeoooo.Gold_Rush_Lab.presentation.dto.comm.ApiResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -45,6 +46,15 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleMineDepleted(MineDepletedException exception) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(ApiResponse.fail("MINE_DEPLETED", exception.getMessage()));
+    }
+
+    @ExceptionHandler(OptimisticLockingFailureException.class)
+    public ResponseEntity<ApiResponse<Void>> handleOptimisticLockFailure(OptimisticLockingFailureException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.fail(
+                        "OPTIMISTIC_LOCK_FAILURE",
+                        "Optimistic Lock 실패 오류"
+                ));
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
