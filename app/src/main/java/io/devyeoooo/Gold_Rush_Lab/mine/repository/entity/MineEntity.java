@@ -20,12 +20,15 @@ public class MineEntity extends BaseEntity {
 
     Long remainingAmount;
 
+    @Version
+    Long version;
+
     public static MineEntity create(Long remainingAmount) {
         if(remainingAmount == null || remainingAmount < 0) {
             throw new IllegalArgumentException("Mine의 잔량은 음수이거나 null 일 수 없습니다.");
         }
 
-        return new MineEntity(null, remainingAmount);
+        return new MineEntity(null, remainingAmount, null);
     }
 
     public void mine(Long amount) {

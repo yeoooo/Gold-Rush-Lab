@@ -7,14 +7,15 @@
 -- =========================================================
 
 CREATE TABLE mine
-
 (
-
     id               BIGINT GENERATED ALWAYS AS IDENTITY,
     remaining_amount BIGINT      NOT NULL,
     created_at       TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    version          BIGINT      NOT NULL DEFAULT 0,
+
     CONSTRAINT pk_mine
         PRIMARY KEY (id),
+
     CONSTRAINT chk_mine_remaining_amount
         CHECK (remaining_amount >= 0)
 );
