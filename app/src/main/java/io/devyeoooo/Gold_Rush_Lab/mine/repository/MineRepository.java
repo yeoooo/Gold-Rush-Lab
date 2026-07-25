@@ -7,4 +7,5 @@ public interface MineRepository {
 
     MineEntity findFirstNotDepleted();
     MineEntity findById(Long id);
+    MineEntity findByIdForUpdate(Long id);
 }

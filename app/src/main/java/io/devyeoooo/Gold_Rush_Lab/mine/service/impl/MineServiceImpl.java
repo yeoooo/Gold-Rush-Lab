@@ -88,7 +88,12 @@ public class MineServiceImpl implements MineService {
         LockStrategy strategy = LockStrategy.from(configuredLockStrategy);
         try {
             UserEntity foundUser = userRepository.findBySessionId(sessionId);
-            MineEntity foundMine = foundUser.getMine();
+            /**
+             * pessimistic lock 에서는 조회 메서드를 따로 작성했다.
+             * UserEntity 에 연결된 MineEntity 는 fetchJoin 방식이나, Eager 로딩이 아니기 때문에 같은 쿼리가 한번 더 나가기 때문.
+             * 결론적으로 성능상의 차이는 무시할 수 있는 정도로 판단했다.
+             */
+            MineEntity foundMine = mineRepository.findByIdForUpdate(foundUser.getMine().getId());
 
             foundMine.mine(amount);
             foundUser.addGold(amount);

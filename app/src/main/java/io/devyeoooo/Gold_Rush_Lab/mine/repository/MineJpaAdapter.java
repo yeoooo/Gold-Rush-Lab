@@ -28,4 +28,10 @@ public class MineJpaAdapter implements MineRepository {
         return mineJpaRepository.findById(id)
                 .orElseThrow(MineNotFoundException::new);
     }
+
+    @Override
+    public MineEntity findByIdForUpdate(Long id) {
+        return mineJpaRepository.findByIdForUpdate(id)
+                .orElseThrow(MineNotFoundException::new);
+    }
 }
