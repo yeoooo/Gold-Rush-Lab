@@ -30,7 +30,7 @@ import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standal
 @ExtendWith(MockitoExtension.class)
 class MineControllerTest {
 
-    private static final String MINE_URL = "/v01/mine";
+    private static final String MINE_URL = "/mine";
     private static final String CREATE_MINE_URL = "/mines";
 
     @Mock
