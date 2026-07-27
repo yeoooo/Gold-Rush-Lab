@@ -28,5 +28,5 @@ export function signin(mineId) {
 }
 
 export function mine(sessionId) {
-    return post('/v01/mine', { sessionId }, 'mine');
+    return post('/mine', { sessionId }, 'mine');
 }

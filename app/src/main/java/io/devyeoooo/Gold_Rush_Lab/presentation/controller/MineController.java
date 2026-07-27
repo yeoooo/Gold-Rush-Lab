@@ -33,7 +33,7 @@ public class MineController {
         return ApiResponse.success(MineDto.of(mineService.findById(createdId)));
     }
 
-    @PostMapping("/v01/mine")
+    @PostMapping("/mine")
     public ApiResponse<MineRequestDto> mine(
             @RequestParam(name = "sessionId") UUID sessionId
             ) {

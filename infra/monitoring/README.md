@@ -25,21 +25,21 @@ HTTP 처리량과 응답 시간은 중복 커스텀 메트릭을 만들지 않�
 
 JVM & Process 영역은 `process_cpu_usage`와 `system_cpu_usage`를 각각 애플리케이션 프로세스 및 시스템 CPU 사용률로 표시한다. 모든 시계열 패널의 표 형식 범례에는 현재값, 평균값과 함께 선택 기간의 최대값(Max)을 표시한다.
 
-Prometheus endpoint는 `http://localhost:8080/api/actuator/prometheus`이다. 실제 채굴 컨트롤러 경로는 `POST /api/v01/mine`이고, 일반적인 Spring MVC `uri` 태그는 컨텍스트 패스를 제외한 `/v01/mine`으로 노출된다. 실행 환경의 endpoint 출력이 다르면 아래 selector를 실제 `uri` 값에 맞춘다.
+Prometheus endpoint는 `http://localhost:8080/api/actuator/prometheus`이다. 실제 채굴 컨트롤러 경로는 `POST /api/mine`이고, 일반적인 Spring MVC `uri` 태그는 컨텍스트 패스를 제외한 `/mine`으로 노출된다. 실행 환경의 endpoint 출력이 다르면 아래 selector를 실제 `uri` 값에 맞춘다.
 
 ## Grafana PromQL
 
 TPS:
 
 ```promql
-sum(rate(http_server_requests_seconds_count{uri="/v01/mine",method="POST"}[1m]))
+sum(rate(http_server_requests_seconds_count{uri="/mine",method="POST"}[1m]))
 ```
 
 선택 범위 내 최대 TPS:
 
 ```promql
 max_over_time(
-  (sum(rate(http_server_requests_seconds_count{uri="/v01/mine",method="POST"}[1m])))
+  (sum(rate(http_server_requests_seconds_count{uri="/mine",method="POST"}[1m])))
   [$__range:5s]
 )
 ```
@@ -47,9 +47,9 @@ max_over_time(
 평균 응답 시간(초):
 
 ```promql
-sum(rate(http_server_requests_seconds_sum{uri="/v01/mine",method="POST"}[1m]))
+sum(rate(http_server_requests_seconds_sum{uri="/mine",method="POST"}[1m]))
 /
-sum(rate(http_server_requests_seconds_count{uri="/v01/mine",method="POST"}[1m]))
+sum(rate(http_server_requests_seconds_count{uri="/mine",method="POST"}[1m]))
 ```
 
 P95 / P99:
@@ -57,14 +57,14 @@ P95 / P99:
 ```promql
 histogram_quantile(
   0.95,
-  sum by (le) (rate(http_server_requests_seconds_bucket{uri="/v01/mine",method="POST"}[1m]))
+  sum by (le) (rate(http_server_requests_seconds_bucket{uri="/mine",method="POST"}[1m]))
 )
 ```
 
 ```promql
 histogram_quantile(
   0.99,
-  sum by (le) (rate(http_server_requests_seconds_bucket{uri="/v01/mine",method="POST"}[1m]))
+  sum by (le) (rate(http_server_requests_seconds_bucket{uri="/mine",method="POST"}[1m]))
 )
 ```
 
