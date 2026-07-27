@@ -1,0 +1,58 @@
+services:
+  nginx:
+    image: nginx:1.28-alpine
+    container_name: gold-rush-lb
+    restart: unless-stopped
+
+    ports:
+      - "80:80"
+
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+
+    networks:
+      - lb-network
+
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/stub_status || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  nginx-exporter:
+    image: nginx/nginx-prometheus-exporter:1.5.1
+    container_name: gold-rush-nginx-exporter
+    restart: unless-stopped
+
+    command:
+      - "--nginx.scrape-uri=http://nginx:8080/stub_status"
+
+    ports:
+      - "9113:9113"
+
+    depends_on:
+      nginx:
+        condition: service_healthy
+
+    networks:
+      - lb-network
+
+  node-exporter:
+    image: prom/node-exporter:v1.10.1
+    container_name: gold-rush-node-exporter
+    restart: unless-stopped
+
+    network_mode: host
+    pid: host
+
+    command:
+      - "--path.rootfs=/host"
+
+    volumes:
+      - "/:/host:ro,rslave"
+
+    read_only: true
+
+networks:
+  lb-network:
+    driver: bridge
