@@ -127,6 +127,32 @@ v0.1 | hotspot | VU 100 | Run 3 | benchmark
 TPS는 초당 요청 수인 `req/s`로 기록한다. TPS, CPU, JVM heap, latency,
 error rate 등의 실수 지표는 소수점 아래 3자리로 반올림한다.
 
+`TPS (req/s)`는 k6가 로드밸런서를 통해 보낸 전체 요청을 최초 요청 시작부터
+마지막 응답 완료까지의 시간으로 나눈 값이다. 이 전체 TPS는 기존과 동일하게
+유지한다.
+
+분산 환경의 부하 분배와 인스턴스별 병목을 쉽게 필터링할 수 있도록 하나의
+실행을 대상별 CSV 행으로 나누어 기록한다.
+
+- `Target Type=LOAD_BALANCER`: 기존 k6 전체 TPS와 실행 결과
+- `Target Type=BACKEND`: Prometheus `instance`별 TPS, System CPU,
+  Process CPU, JVM Heap 피크
+
+`Target`에는 로드밸런서 요청 URL 또는 Prometheus의 백엔드 `instance`
+label이 들어간다. 백엔드 행에서 해당하지 않는 Hikari, latency, 정합성
+컬럼은 비워 둔다. 로드밸런서 행의 CPU와 Heap도 비워 두며, 해당 값은 각
+백엔드 행에서 확인한다. 기존 Hikari 합계는 실행 설정과 전체 풀 사용량을
+나타내므로 로드밸런서 실행 요약 행에 유지한다.
+
+```text
+RUN,LOAD_BALANCER,http://192.168.0.47/api,...,492.814 req/s,...
+RUN,BACKEND,192.168.0.41:8080,...,245.123 req/s,...
+RUN,BACKEND,192.168.0.46:8080,...,247.691 req/s,...
+```
+
+`AVERAGE`도 같은 구조이며, 백엔드 행은 같은 VU의 반복 실행 값을
+인스턴스별로 산술평균한다.
+
 ```text
 초기 잔량 = 사용자 총 채굴량 + 실제 잔량
 초기 잔량 = Mining Log 총 채굴량 + 실제 잔량

@@ -233,7 +233,8 @@ format_count() {
 }
 
 csv_row \
-    "Record Type" "Version" "Hikari Max Pool Size" "VU" "Run" "TPS (req/s)" \
+    "Record Type" "Target Type" "Target" "Version" \
+    "Hikari Max Pool Size" "VU" "Run" "TPS (req/s)" \
     "System CPU Peak (%)" "Process CPU Peak (%)" "JVM Heap Peak (%)" \
     "Hikari Active Peak" "Avg Latency (ms)" "P95 (ms)" "P99 (ms)" \
     "Error Rate (%)" "초기 잔량" "사용자 총 채굴량" \
@@ -251,6 +252,29 @@ prom_query() {
                 error("Prometheus query returned \(.data.result | length) series")
             else
                 .data.result[0].value[1]
+            end
+        '
+}
+
+prom_query_by_instance() {
+    local query=$1
+    curl -fsS --get "$MONITOR_HOST/api/v1/query" \
+        --data-urlencode "query=$query" |
+        jq -cer '
+            if .status != "success" then
+                error(.error // "Prometheus query failed")
+            elif (.data.result | length) == 0 then
+                error("Prometheus query returned no series")
+            elif any(.data.result[]; .metric.instance == null) then
+                error("Prometheus query returned a series without an instance label")
+            else
+                .data.result
+                | map({
+                    key: .metric.instance,
+                    value: (.value[1] | tonumber)
+                })
+                | sort_by(.key)
+                | from_entries
             end
         '
 }
@@ -376,7 +400,7 @@ collect_peak_metrics() {
 
     sleep "$PROM_SCRAPE_DELAY"
     end_epoch=$(date +%s)
-    window=$((end_epoch - start_epoch + PROM_SCRAPE_DELAY))
+    window=$((end_epoch - start_epoch))
 
     SYSTEM_CPU_PEAK=$(prom_query \
         "max_over_time((100 * max(system_cpu_usage{${PROM_LABELS}}))[${window}s:5s])")
@@ -388,6 +412,15 @@ collect_peak_metrics() {
         "max_over_time((sum(hikaricp_connections_active{${PROM_LABELS}}))[${window}s:5s])")
     HIKARI_MAX=$(prom_query \
         "sum(hikaricp_connections_max{${PROM_LABELS}})")
+
+    BACKEND_TPS_BY_INSTANCE=$(prom_query_by_instance \
+        "sum by (instance) (increase(http_server_requests_seconds_count{uri=\"${MINE_URI}\",method=\"POST\",${PROM_LABELS}}[${window}s])) / ${BENCHMARK_DURATION_SECONDS}")
+    SYSTEM_CPU_PEAK_BY_INSTANCE=$(prom_query_by_instance \
+        "max_over_time((100 * system_cpu_usage{${PROM_LABELS}})[${window}s:5s])")
+    PROCESS_CPU_PEAK_BY_INSTANCE=$(prom_query_by_instance \
+        "max_over_time((100 * process_cpu_usage{${PROM_LABELS}})[${window}s:5s])")
+    JVM_HEAP_PEAK_BY_INSTANCE=$(prom_query_by_instance \
+        "max_over_time((100 * sum by (instance) (jvm_memory_used_bytes{area=\"heap\",${PROM_LABELS}}) / clamp_min(sum by (instance) (jvm_memory_max_bytes{area=\"heap\",${PROM_LABELS}}), 1))[${window}s:5s])")
 }
 
 verify_database() {
@@ -494,6 +527,11 @@ run_k6() {
             $metrics.benchmark_requests.count / $seconds
           end
     ' "$summary_file")
+    BENCHMARK_DURATION_SECONDS=$(jq -er '
+        (.metrics.benchmark_finished_at_ms.max
+            - .metrics.benchmark_started_at_ms.min) / 1000
+        | if . <= 0 then 0.001 else . end
+    ' "$summary_file")
     AVG_LATENCY=$(jq -er '.metrics.benchmark_latency.avg' "$summary_file")
     P95=$(jq -er '.metrics.benchmark_latency["p(95)"]' "$summary_file")
     P99=$(jq -er '.metrics.benchmark_latency["p(99)"]' "$summary_file")
@@ -509,11 +547,10 @@ append_run() {
     local run=$2
 
     csv_row \
-        "RUN" "$VERSION" "$(format_count "$HIKARI_MAX")" "$vu" "$run" \
+        "RUN" "LOAD_BALANCER" "$REQUEST_HOST" "$VERSION" \
+        "$(format_count "$HIKARI_MAX")" "$vu" "$run" \
         "$(format_tps "$TPS")" \
-        "$(format_decimal "$SYSTEM_CPU_PEAK")" \
-        "$(format_decimal "$PROCESS_CPU_PEAK")" \
-        "$(format_decimal "$JVM_HEAP_PEAK")" \
+        "" "" "" \
         "$(format_count "$HIKARI_ACTIVE_PEAK")" \
         "$(format_decimal "$AVG_LATENCY")" \
         "$(format_decimal "$P95")" \
@@ -529,9 +566,13 @@ append_run() {
         --argjson vu "$vu" \
         --argjson hikariMax "$HIKARI_MAX" \
         --argjson tps "$TPS" \
+        --argjson backendTpsByInstance "$BACKEND_TPS_BY_INSTANCE" \
         --argjson systemCpu "$SYSTEM_CPU_PEAK" \
         --argjson processCpu "$PROCESS_CPU_PEAK" \
         --argjson heap "$JVM_HEAP_PEAK" \
+        --argjson systemCpuByInstance "$SYSTEM_CPU_PEAK_BY_INSTANCE" \
+        --argjson processCpuByInstance "$PROCESS_CPU_PEAK_BY_INSTANCE" \
+        --argjson heapByInstance "$JVM_HEAP_PEAK_BY_INSTANCE" \
         --argjson hikariActive "$HIKARI_ACTIVE_PEAK" \
         --argjson avgLatency "$AVG_LATENCY" \
         --argjson p95 "$P95" \
@@ -546,9 +587,13 @@ append_run() {
             vu: $vu,
             hikariMax: $hikariMax,
             tps: $tps,
+            backendTpsByInstance: $backendTpsByInstance,
             systemCpu: $systemCpu,
             processCpu: $processCpu,
             heap: $heap,
+            systemCpuByInstance: $systemCpuByInstance,
+            processCpuByInstance: $processCpuByInstance,
+            heapByInstance: $heapByInstance,
             hikariActive: $hikariActive,
             avgLatency: $avgLatency,
             p95: $p95,
@@ -560,15 +605,19 @@ append_run() {
             remaining: $remaining,
             consistent: $consistent
         }' >> "$RUN_JSONL"
+
+    append_backend_rows \
+        "RUN" "$vu" "$run" "$STARTED_AT" "$FINISHED_AT" \
+        "$BACKEND_TPS_BY_INSTANCE" "$SYSTEM_CPU_PEAK_BY_INSTANCE" \
+        "$PROCESS_CPU_PEAK_BY_INSTANCE" "$JVM_HEAP_PEAK_BY_INSTANCE"
 }
 
 append_warmup() {
     csv_row \
-        "WARMUP" "$VERSION" "$(format_count "$HIKARI_MAX")" "$WARMUP_VU" "1" \
+        "WARMUP" "LOAD_BALANCER" "$REQUEST_HOST" "$VERSION" \
+        "$(format_count "$HIKARI_MAX")" "$WARMUP_VU" "1" \
         "$(format_tps "$TPS")" \
-        "$(format_decimal "$SYSTEM_CPU_PEAK")" \
-        "$(format_decimal "$PROCESS_CPU_PEAK")" \
-        "$(format_decimal "$JVM_HEAP_PEAK")" \
+        "" "" "" \
         "$(format_count "$HIKARI_ACTIVE_PEAK")" \
         "$(format_decimal "$AVG_LATENCY")" \
         "$(format_decimal "$P95")" \
@@ -580,8 +629,50 @@ append_warmup() {
         "$(format_count "$ACTUAL_REMAINING")" "$CONSISTENCY" \
         "$STARTED_AT" "$FINISHED_AT" >> "$OUTPUT_FILE"
 
+    append_backend_rows \
+        "WARMUP" "$WARMUP_VU" "1" "$STARTED_AT" "$FINISHED_AT" \
+        "$BACKEND_TPS_BY_INSTANCE" "$SYSTEM_CPU_PEAK_BY_INSTANCE" \
+        "$PROCESS_CPU_PEAK_BY_INSTANCE" "$JVM_HEAP_PEAK_BY_INSTANCE"
+
     echo "웜업 결과를 CSV에 기록했습니다."
     annotate_grafana "warmup" "$WARMUP_VU" "1"
+}
+
+append_backend_rows() {
+    local record_type=$1
+    local vu=$2
+    local run=$3
+    local started_at=$4
+    local finished_at=$5
+    local tps_by_instance=$6
+    local system_cpu_by_instance=$7
+    local process_cpu_by_instance=$8
+    local heap_by_instance=$9
+    local instance
+    local instance_tps
+    local instance_system_cpu
+    local instance_process_cpu
+    local instance_heap
+
+    while IFS= read -r instance; do
+        instance_tps=$(jq -er --arg instance "$instance" '.[$instance]' \
+            <<< "$tps_by_instance")
+        instance_system_cpu=$(jq -er --arg instance "$instance" '.[$instance]' \
+            <<< "$system_cpu_by_instance")
+        instance_process_cpu=$(jq -er --arg instance "$instance" '.[$instance]' \
+            <<< "$process_cpu_by_instance")
+        instance_heap=$(jq -er --arg instance "$instance" '.[$instance]' \
+            <<< "$heap_by_instance")
+
+        csv_row \
+            "$record_type" "BACKEND" "$instance" "$VERSION" "" "$vu" "$run" \
+            "$(format_tps "$instance_tps")" \
+            "$(format_decimal "$instance_system_cpu")" \
+            "$(format_decimal "$instance_process_cpu")" \
+            "$(format_decimal "$instance_heap")" \
+            "" "" "" "" "" "" "" "" "" "" \
+            "$started_at" "$finished_at" >> "$OUTPUT_FILE"
+    done < <(jq -r 'keys[]' <<< "$tps_by_instance")
 }
 
 append_average() {
@@ -592,12 +683,23 @@ append_average() {
         map(select(.vu == $vu)) as $rows
         | ($rows | length) as $count
         | def mean(field): ($rows | map(.[field]) | add / $count);
+        def mean_by_instance(field):
+            reduce ($rows | map(.[field])[]) as $metrics ({};
+                reduce ($metrics | to_entries[]) as $metric (.;
+                    .[$metric.key] = ((.[$metric.key] // []) + [$metric.value])
+                )
+            )
+            | with_entries(.value = (.value | add / length));
         {
             hikariMax: mean("hikariMax"),
             tps: mean("tps"),
+            backendTpsByInstance: mean_by_instance("backendTpsByInstance"),
             systemCpu: mean("systemCpu"),
             processCpu: mean("processCpu"),
             heap: mean("heap"),
+            systemCpuByInstance: mean_by_instance("systemCpuByInstance"),
+            processCpuByInstance: mean_by_instance("processCpuByInstance"),
+            heapByInstance: mean_by_instance("heapByInstance"),
             hikariActive: mean("hikariActive"),
             avgLatency: mean("avgLatency"),
             p95: mean("p95"),
@@ -612,12 +714,10 @@ append_average() {
     ' "$RUN_JSONL")
 
     csv_row \
-        "AVERAGE" "$VERSION" \
+        "AVERAGE" "LOAD_BALANCER" "$REQUEST_HOST" "$VERSION" \
         "$(format_count "$(jq -r '.hikariMax' <<< "$average")")" "$vu" \
         "AVERAGE" "$(format_tps "$(jq -r '.tps' <<< "$average")")" \
-        "$(format_decimal "$(jq -r '.systemCpu' <<< "$average")")" \
-        "$(format_decimal "$(jq -r '.processCpu' <<< "$average")")" \
-        "$(format_decimal "$(jq -r '.heap' <<< "$average")")" \
+        "" "" "" \
         "$(format_count "$(jq -r '.hikariActive' <<< "$average")")" \
         "$(format_decimal "$(jq -r '.avgLatency' <<< "$average")")" \
         "$(format_decimal "$(jq -r '.p95' <<< "$average")")" \
@@ -628,6 +728,13 @@ append_average() {
         "$(format_count "$(jq -r '.logMined' <<< "$average")")" \
         "$(format_count "$(jq -r '.remaining' <<< "$average")")" \
         "$(jq -r '.consistent' <<< "$average")" "" "" >> "$OUTPUT_FILE"
+
+    append_backend_rows \
+        "AVERAGE" "$vu" "AVERAGE" "" "" \
+        "$(jq -c '.backendTpsByInstance' <<< "$average")" \
+        "$(jq -c '.systemCpuByInstance' <<< "$average")" \
+        "$(jq -c '.processCpuByInstance' <<< "$average")" \
+        "$(jq -c '.heapByInstance' <<< "$average")"
 
     echo "VU=$vu 산술평균 행을 기록했습니다."
 }
