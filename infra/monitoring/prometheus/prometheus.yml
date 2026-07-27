@@ -3,13 +3,37 @@ global:
   evaluation_interval: 5s
 
 scrape_configs:
+  # Spring Boot
   - job_name: "gold-rush-app"
     metrics_path: "/api/actuator/prometheus"
 
     static_configs:
       - targets:
-          - "host.docker.internal:8080"
+          - "192.168.0.41:8080"
+          - "192.168.0.46:8080"
 
         labels:
           application: "gold-rush-lab"
+          environment: "local"
+
+  # Nginx Exporter
+  - job_name: "gold-rush-lb-nginx"
+
+    static_configs:
+      - targets:
+          - "192.168.0.47:9113"
+
+        labels:
+          application: "gold-rush-lb"
+          environment: "local"
+
+  # Node Exporter (LB 서버)
+  - job_name: "gold-rush-lb-node"
+
+    static_configs:
+      - targets:
+          - "192.168.0.47:9100"
+
+        labels:
+          application: "gold-rush-lb"
           environment: "local"

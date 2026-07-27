@@ -15,7 +15,7 @@
       }
     ]
   },
-  "description": "Gold Rush Lab application, JVM, connection pool, and mining metrics. Panels for lock wait and optimistic retry show No data until the corresponding lock strategy is implemented. Sections marked Future require additional custom instrumentation.",
+  "description": "Gold Rush Lab scale-out dashboard for application, JVM, HikariCP, backend distribution, Nginx load balancer, and LB host metrics.",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -75,7 +75,8 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(rate(http_server_requests_seconds_count{uri=\"/v01/mine\",method=\"POST\"}[$__rate_interval]))",
+          "expr": "sum(rate(http_server_requests_seconds_count{job=\"gold-rush-app\",uri=\"/mine\",method=\"POST\"}[$__rate_interval]))",
+          "instant": false,
           "legendFormat": "TPS",
           "range": true,
           "refId": "A"
@@ -124,7 +125,8 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(rate(http_server_requests_seconds_sum{uri=\"/v01/mine\",method=\"POST\"}[$__rate_interval])) / clamp_min(sum(rate(http_server_requests_seconds_count{uri=\"/v01/mine\",method=\"POST\"}[$__rate_interval])), 1e-9)",
+          "expr": "sum(rate(http_server_requests_seconds_sum{job=\"gold-rush-app\",uri=\"/mine\",method=\"POST\"}[$__rate_interval])) / clamp_min(sum(rate(http_server_requests_seconds_count{job=\"gold-rush-app\",uri=\"/mine\",method=\"POST\"}[$__rate_interval])), 1e-9)",
+          "instant": false,
           "legendFormat": "Average",
           "range": true,
           "refId": "A"
@@ -173,7 +175,8 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{uri=\"/v01/mine\",method=\"POST\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{job=\"gold-rush-app\",uri=\"/mine\",method=\"POST\"}[$__rate_interval])))",
+          "instant": false,
           "legendFormat": "P95",
           "range": true,
           "refId": "A"
@@ -222,7 +225,8 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "histogram_quantile(0.99, sum by (le) (rate(http_server_requests_seconds_bucket{uri=\"/v01/mine\",method=\"POST\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(http_server_requests_seconds_bucket{job=\"gold-rush-app\",uri=\"/mine\",method=\"POST\"}[$__rate_interval])))",
+          "instant": false,
           "legendFormat": "P99",
           "range": true,
           "refId": "A"
@@ -285,7 +289,8 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "(100 * sum(rate(http_server_requests_seconds_count{uri=\"/v01/mine\",method=\"POST\",status=~\"4..|5..\"}[$__rate_interval])) / clamp_min(sum(rate(http_server_requests_seconds_count{uri=\"/v01/mine\",method=\"POST\"}[$__rate_interval])), 1e-9)) or vector(0)",
+          "expr": "(100 * sum(rate(http_server_requests_seconds_count{job=\"gold-rush-app\",uri=\"/mine\",method=\"POST\",status=~\"4..|5..\"}[$__rate_interval])) / clamp_min(sum(rate(http_server_requests_seconds_count{job=\"gold-rush-app\",uri=\"/mine\",method=\"POST\"}[$__rate_interval])), 1e-9)) or vector(0)",
+          "instant": false,
           "legendFormat": "Errors",
           "range": true,
           "refId": "A"
@@ -348,7 +353,8 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "100 * system_cpu_usage",
+          "expr": "100 * system_cpu_usage{job=\"gold-rush-app\"}",
+          "instant": false,
           "legendFormat": "{{instance}}",
           "range": true,
           "refId": "A"
@@ -397,7 +403,8 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "jvm_threads_live_threads",
+          "expr": "jvm_threads_live_threads{job=\"gold-rush-app\"}",
+          "instant": false,
           "legendFormat": "{{instance}}",
           "range": true,
           "refId": "A"
@@ -447,7 +454,8 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "100 * sum by (instance) (jvm_memory_used_bytes{area=\"heap\"}) / clamp_min(sum by (instance) (jvm_memory_max_bytes{area=\"heap\"}), 1)",
+          "expr": "100 * sum by (instance) (jvm_memory_used_bytes{job=\"gold-rush-app\",area=\"heap\"}) / clamp_min(sum by (instance) (jvm_memory_max_bytes{job=\"gold-rush-app\",area=\"heap\"}), 1)",
+          "instant": false,
           "legendFormat": "{{instance}}",
           "range": true,
           "refId": "A"
@@ -497,7 +505,8 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "100 * process_cpu_usage",
+          "expr": "100 * process_cpu_usage{job=\"gold-rush-app\"}",
+          "instant": false,
           "legendFormat": "{{instance}}",
           "range": true,
           "refId": "A"
@@ -546,7 +555,8 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum by (instance) (rate(jvm_gc_pause_seconds_sum[$__rate_interval])) / clamp_min(sum by (instance) (rate(jvm_gc_pause_seconds_count[$__rate_interval])), 1e-9)",
+          "expr": "sum by (instance) (rate(jvm_gc_pause_seconds_sum{job=\"gold-rush-app\"}[$__rate_interval])) / clamp_min(sum by (instance) (rate(jvm_gc_pause_seconds_count{job=\"gold-rush-app\"}[$__rate_interval])), 1e-9)",
+          "instant": false,
           "legendFormat": "{{instance}}",
           "range": true,
           "refId": "A"
@@ -608,27 +618,30 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(hikaricp_connections_active)",
-          "legendFormat": "Active",
+          "expr": "sum by (instance) (hikaricp_connections_active{job=\"gold-rush-app\"})",
+          "instant": false,
+          "legendFormat": "{{instance}} Active",
           "range": true,
           "refId": "A"
         },
         {
           "editorMode": "code",
-          "expr": "sum(hikaricp_connections_idle)",
-          "legendFormat": "Idle",
+          "expr": "sum by (instance) (hikaricp_connections_idle{job=\"gold-rush-app\"})",
+          "instant": false,
+          "legendFormat": "{{instance}} Idle",
           "range": true,
           "refId": "B"
         },
         {
           "editorMode": "code",
-          "expr": "sum(hikaricp_connections_pending)",
-          "legendFormat": "Pending",
+          "expr": "sum by (instance) (hikaricp_connections_pending{job=\"gold-rush-app\"})",
+          "instant": false,
+          "legendFormat": "{{instance}} Pending",
           "range": true,
           "refId": "C"
         }
       ],
-      "title": "Hikari Pool",
+      "title": "Hikari Pool by Instance",
       "type": "timeseries",
       "interval": "1s"
     },
@@ -671,13 +684,14 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(increase(hikaricp_connections_timeout_total[$__rate_interval])) or vector(0)",
-          "legendFormat": "Timeouts",
+          "expr": "sum by (instance) (increase(hikaricp_connections_timeout_total{job=\"gold-rush-app\"}[$__rate_interval]))",
+          "instant": false,
+          "legendFormat": "{{instance}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Total Timeout",
+      "title": "Hikari Timeout by Instance",
       "type": "timeseries",
       "interval": "1s"
     },
@@ -719,14 +733,14 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(hikaricp_connections_max)",
+          "expr": "sum(hikaricp_connections_max{job=\"gold-rush-app\"})",
           "instant": true,
           "legendFormat": "Max",
           "range": false,
           "refId": "A"
         }
       ],
-      "title": "Hikari Max Pool",
+      "title": "Hikari Max Pool Total",
       "type": "stat",
       "interval": "1s"
     },
@@ -781,7 +795,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(rate(gold_rush_mining_lock_wait_seconds_sum[$__rate_interval])) / clamp_min(sum(rate(gold_rush_mining_lock_wait_seconds_count[$__rate_interval])), 1e-9)",
+          "expr": "sum(rate(gold_rush_mining_lock_wait_seconds_sum{job=\"gold-rush-app\"}[$__rate_interval])) / clamp_min(sum(rate(gold_rush_mining_lock_wait_seconds_count{job=\"gold-rush-app\"}[$__rate_interval])), 1e-9)",
           "instant": true,
           "legendFormat": "Average wait",
           "range": false,
@@ -830,7 +844,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(rate(gold_rush_optimistic_lock_retry_total[$__rate_interval]))",
+          "expr": "sum(rate(gold_rush_optimistic_lock_retry_total{job=\"gold-rush-app\"}[$__rate_interval]))",
           "instant": true,
           "legendFormat": "Retries/s",
           "range": false,
@@ -879,7 +893,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(rate(gold_rush_lock_timeout_total[$__rate_interval]))",
+          "expr": "sum(rate(gold_rush_lock_timeout_total{job=\"gold-rush-app\"}[$__rate_interval]))",
           "instant": true,
           "legendFormat": "Timeouts/s",
           "range": false,
@@ -928,7 +942,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(rate(gold_rush_deadlock_total[$__rate_interval]))",
+          "expr": "sum(rate(gold_rush_deadlock_total{job=\"gold-rush-app\"}[$__rate_interval]))",
           "instant": true,
           "legendFormat": "Deadlocks/s",
           "range": false,
@@ -977,7 +991,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(rate(gold_rush_mining_success_total[$__rate_interval]))",
+          "expr": "sum(rate(gold_rush_mining_success_total{job=\"gold-rush-app\"}[$__rate_interval]))",
           "instant": true,
           "legendFormat": "Successes/s",
           "range": false,
@@ -1026,7 +1040,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(rate(gold_rush_mining_failure_total[$__rate_interval]))",
+          "expr": "sum(rate(gold_rush_mining_failure_total{job=\"gold-rush-app\"}[$__rate_interval]))",
           "instant": true,
           "legendFormat": "Failures/s",
           "range": false,
@@ -1088,7 +1102,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(gold_rush_remaining_gold)",
+          "expr": "sum(gold_rush_remaining_gold{job=\"gold-rush-app\"})",
           "instant": true,
           "legendFormat": "Gold",
           "range": false,
@@ -1137,7 +1151,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(gold_rush_active_users)",
+          "expr": "sum(gold_rush_active_users{job=\"gold-rush-app\"})",
           "instant": true,
           "legendFormat": "Users",
           "range": false,
@@ -1147,6 +1161,458 @@
       "title": "Active Users",
       "type": "stat",
       "interval": "1s"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 50
+      },
+      "id": 28,
+      "panels": [],
+      "title": "Backend Distribution",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 1,
+          "min": 0,
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 51
+      },
+      "id": 29,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "sum by (instance) (rate(http_server_requests_seconds_count{job=\"gold-rush-app\",uri=\"/mine\",method=\"POST\"}[$__rate_interval]))",
+          "instant": false,
+          "legendFormat": "{{instance}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Backend TPS by Instance",
+      "type": "timeseries",
+      "interval": "1s"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 3,
+          "min": 0,
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 51
+      },
+      "id": 30,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "sum by (instance) (rate(http_server_requests_seconds_sum{job=\"gold-rush-app\",uri=\"/mine\",method=\"POST\"}[$__rate_interval])) / clamp_min(sum by (instance) (rate(http_server_requests_seconds_count{job=\"gold-rush-app\",uri=\"/mine\",method=\"POST\"}[$__rate_interval])), 1e-9)",
+          "instant": false,
+          "legendFormat": "{{instance}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Backend Avg Latency by Instance",
+      "type": "timeseries",
+      "interval": "1s"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 59
+      },
+      "id": 31,
+      "panels": [],
+      "title": "Load Balancer",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 1,
+          "min": 0,
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 0,
+        "y": 60
+      },
+      "id": 32,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "sum(rate(nginx_http_requests_total{job=\"gold-rush-lb-nginx\"}[$__rate_interval]))",
+          "instant": false,
+          "legendFormat": "LB Requests/s",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "LB Requests/sec",
+      "type": "timeseries",
+      "interval": "1s"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "min": 0,
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 6,
+        "y": 60
+      },
+      "id": 33,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "nginx_connections_active{job=\"gold-rush-lb-nginx\"}",
+          "instant": false,
+          "legendFormat": "Active",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "editorMode": "code",
+          "expr": "nginx_connections_reading{job=\"gold-rush-lb-nginx\"}",
+          "instant": false,
+          "legendFormat": "Reading",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "editorMode": "code",
+          "expr": "nginx_connections_writing{job=\"gold-rush-lb-nginx\"}",
+          "instant": false,
+          "legendFormat": "Writing",
+          "range": true,
+          "refId": "C"
+        },
+        {
+          "editorMode": "code",
+          "expr": "nginx_connections_waiting{job=\"gold-rush-lb-nginx\"}",
+          "instant": false,
+          "legendFormat": "Waiting",
+          "range": true,
+          "refId": "D"
+        }
+      ],
+      "title": "LB Connections",
+      "type": "timeseries",
+      "interval": "1s"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 1,
+          "min": 0,
+          "unit": "percent",
+          "max": 100
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 12,
+        "y": 60
+      },
+      "id": 34,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "100 * (1 - avg by (instance) (rate(node_cpu_seconds_total{job=\"gold-rush-lb-node\",mode=\"idle\"}[$__rate_interval])))",
+          "instant": false,
+          "legendFormat": "{{instance}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "LB CPU Usage",
+      "type": "timeseries",
+      "interval": "1s"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 1,
+          "min": 0,
+          "unit": "percent",
+          "max": 100
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 18,
+        "y": 60
+      },
+      "id": 35,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "100 * (1 - (node_memory_MemAvailable_bytes{job=\"gold-rush-lb-node\"} / node_memory_MemTotal_bytes{job=\"gold-rush-lb-node\"}))",
+          "instant": false,
+          "legendFormat": "{{instance}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "LB Memory Usage",
+      "type": "timeseries",
+      "interval": "1s"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 1,
+          "min": 0,
+          "unit": "bps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 68
+      },
+      "id": 36,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "sum by (instance) (rate(node_network_receive_bytes_total{job=\"gold-rush-lb-node\",device!=\"lo\"}[$__rate_interval])) * 8",
+          "instant": false,
+          "legendFormat": "{{instance}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "LB Network Receive",
+      "type": "timeseries",
+      "interval": "1s"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 1,
+          "min": 0,
+          "unit": "bps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 68
+      },
+      "id": 37,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "sum by (instance) (rate(node_network_transmit_bytes_total{job=\"gold-rush-lb-node\",device!=\"lo\"}[$__rate_interval])) * 8",
+          "instant": false,
+          "legendFormat": "{{instance}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "LB Network Transmit",
+      "type": "timeseries",
+      "interval": "1s"
     }
   ],
   "refresh": "5s",
@@ -1155,7 +1621,9 @@
     "gold-rush",
     "spring-boot",
     "prometheus",
-    "concurrency"
+    "concurrency",
+    "scale-out",
+    "nginx"
   ],
   "templating": {
     "list": []
@@ -1168,6 +1636,6 @@
   "timezone": "browser",
   "title": "Gold Rush Lab",
   "uid": "gold-rush-lab",
-  "version": 2,
+  "version": 3,
   "weekStart": ""
 }
