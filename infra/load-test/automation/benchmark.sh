@@ -239,6 +239,7 @@ csv_row \
     "Hikari Active Peak" "Avg Latency (ms)" "P95 (ms)" "P99 (ms)" \
     "Error Rate (%)" "초기 잔량" "사용자 총 채굴량" \
     "Mining Log 총 채굴량" "실제 잔량" "정합성" "Started At" "Finished At" \
+    "Optimistic Retry Count" \
     > "$OUTPUT_FILE"
 
 prom_query() {
@@ -412,6 +413,20 @@ collect_peak_metrics() {
         "max_over_time((sum(hikaricp_connections_active{${PROM_LABELS}}))[${window}s:5s])")
     HIKARI_MAX=$(prom_query \
         "sum(hikaricp_connections_max{${PROM_LABELS}})")
+    OPTIMISTIC_RETRY_END=$(prom_query \
+        "sum(gold_rush_optimistic_lock_retry_total{${PROM_LABELS}}) or vector(0)")
+    OPTIMISTIC_RETRY_COUNT=$(awk \
+        -v start="$OPTIMISTIC_RETRY_START" \
+        -v end="$OPTIMISTIC_RETRY_END" '
+            BEGIN {
+                # 애플리케이션 재시작으로 Counter가 초기화되면 종료값을 사용한다.
+                if (end < start) {
+                    print end
+                } else {
+                    print end - start
+                }
+            }
+        ')
 
     BACKEND_TPS_BY_INSTANCE=$(prom_query_by_instance \
         "sum by (instance) (increase(http_server_requests_seconds_count{uri=\"${MINE_URI}\",method=\"POST\",${PROM_LABELS}}[${window}s])) / ${BENCHMARK_DURATION_SECONDS}")
@@ -497,6 +512,8 @@ run_k6() {
 
     reset_database
 
+    OPTIMISTIC_RETRY_START=$(prom_query \
+        "sum(gold_rush_optimistic_lock_retry_total{${PROM_LABELS}}) or vector(0)")
     STARTED_AT_EPOCH_MS=$(($(date +%s) * 1000))
     STARTED_AT=$(TZ=Asia/Seoul date +%Y-%m-%dT%H:%M:%S%z)
     start_epoch=$(date +%s)
@@ -560,7 +577,8 @@ append_run() {
         "$(format_count "$USER_TOTAL_MINED")" \
         "$(format_count "$LOG_TOTAL_MINED")" \
         "$(format_count "$ACTUAL_REMAINING")" "$CONSISTENCY" \
-        "$STARTED_AT" "$FINISHED_AT" >> "$OUTPUT_FILE"
+        "$STARTED_AT" "$FINISHED_AT" \
+        "$(format_count "$OPTIMISTIC_RETRY_COUNT")" >> "$OUTPUT_FILE"
 
     jq -cn \
         --argjson vu "$vu" \
@@ -578,6 +596,7 @@ append_run() {
         --argjson p95 "$P95" \
         --argjson p99 "$P99" \
         --argjson errorRate "$ERROR_RATE" \
+        --argjson optimisticRetryCount "$OPTIMISTIC_RETRY_COUNT" \
         --argjson initial "$INITIAL_REMAINING" \
         --argjson userMined "$USER_TOTAL_MINED" \
         --argjson logMined "$LOG_TOTAL_MINED" \
@@ -599,6 +618,7 @@ append_run() {
             p95: $p95,
             p99: $p99,
             errorRate: $errorRate,
+            optimisticRetryCount: $optimisticRetryCount,
             initial: $initial,
             userMined: $userMined,
             logMined: $logMined,
@@ -627,7 +647,8 @@ append_warmup() {
         "$(format_count "$USER_TOTAL_MINED")" \
         "$(format_count "$LOG_TOTAL_MINED")" \
         "$(format_count "$ACTUAL_REMAINING")" "$CONSISTENCY" \
-        "$STARTED_AT" "$FINISHED_AT" >> "$OUTPUT_FILE"
+        "$STARTED_AT" "$FINISHED_AT" \
+        "$(format_count "$OPTIMISTIC_RETRY_COUNT")" >> "$OUTPUT_FILE"
 
     append_backend_rows \
         "WARMUP" "$WARMUP_VU" "1" "$STARTED_AT" "$FINISHED_AT" \
@@ -671,7 +692,7 @@ append_backend_rows() {
             "$(format_decimal "$instance_process_cpu")" \
             "$(format_decimal "$instance_heap")" \
             "" "" "" "" "" "" "" "" "" "" \
-            "$started_at" "$finished_at" >> "$OUTPUT_FILE"
+            "$started_at" "$finished_at" "" >> "$OUTPUT_FILE"
     done < <(jq -r 'keys[]' <<< "$tps_by_instance")
 }
 
@@ -705,6 +726,7 @@ append_average() {
             p95: mean("p95"),
             p99: mean("p99"),
             errorRate: mean("errorRate"),
+            optimisticRetryCount: mean("optimisticRetryCount"),
             initial: mean("initial"),
             userMined: mean("userMined"),
             logMined: mean("logMined"),
@@ -727,7 +749,9 @@ append_average() {
         "$(format_count "$(jq -r '.userMined' <<< "$average")")" \
         "$(format_count "$(jq -r '.logMined' <<< "$average")")" \
         "$(format_count "$(jq -r '.remaining' <<< "$average")")" \
-        "$(jq -r '.consistent' <<< "$average")" "" "" >> "$OUTPUT_FILE"
+        "$(jq -r '.consistent' <<< "$average")" "" "" \
+        "$(format_count "$(jq -r '.optimisticRetryCount' <<< "$average")")" \
+        >> "$OUTPUT_FILE"
 
     append_backend_rows \
         "AVERAGE" "$vu" "AVERAGE" "" "" \
@@ -737,6 +761,22 @@ append_average() {
         "$(jq -c '.heapByInstance' <<< "$average")"
 
     echo "VU=$vu 산술평균 행을 기록했습니다."
+}
+
+append_maximum_retry() {
+    local vu=$1
+    local maximum_retry
+
+    maximum_retry=$(jq -sr --argjson vu "$vu" \
+        'map(select(.vu == $vu) | .optimisticRetryCount) | max' \
+        "$RUN_JSONL")
+
+    csv_row \
+        "MAXIMUM" "LOAD_BALANCER" "$REQUEST_HOST" "$VERSION" \
+        "" "$vu" "MAXIMUM" "" "" "" "" "" "" "" "" "" "" "" "" "" "" \
+        "" "" "$(format_count "$maximum_retry")" >> "$OUTPUT_FILE"
+
+    echo "VU=$vu 최대 재시도 횟수 행을 기록했습니다."
 }
 
 echo "결과 CSV: $OUTPUT_FILE"
@@ -755,6 +795,7 @@ for vu in "${VUS[@]}"; do
         wait_until_stable
     done
     append_average "$vu"
+    append_maximum_retry "$vu"
 done
 
 echo "실험이 완료되었습니다: $OUTPUT_FILE"
