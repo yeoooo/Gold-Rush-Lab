@@ -5,6 +5,7 @@ import io.devyeoooo.Gold_Rush_Lab.comm.exception.MineDepletedException;
 import io.devyeoooo.Gold_Rush_Lab.comm.exception.UserNotFoundException;
 import io.devyeoooo.Gold_Rush_Lab.mine.repository.entity.MineEntity;
 import io.devyeoooo.Gold_Rush_Lab.mine.service.MineService;
+import io.devyeoooo.Gold_Rush_Lab.mine.service.MiningRetryService;
 import io.devyeoooo.Gold_Rush_Lab.user.repository.entity.UserEntity;
 import io.devyeoooo.Gold_Rush_Lab.user.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
@@ -39,11 +40,14 @@ class MineControllerTest {
     @Mock
     private MineService mineService;
 
+    @Mock
+    private MiningRetryService miningRetryService;
+
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        mockMvc = standaloneSetup(new MineController(userService, mineService))
+        mockMvc = standaloneSetup(new MineController(userService, mineService, miningRetryService))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
     }

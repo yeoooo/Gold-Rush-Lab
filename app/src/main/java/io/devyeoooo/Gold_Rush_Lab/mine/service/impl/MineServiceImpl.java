@@ -11,10 +11,13 @@ import io.devyeoooo.Gold_Rush_Lab.observability.MiningFailureType;
 import io.devyeoooo.Gold_Rush_Lab.observability.MiningMetrics;
 import io.devyeoooo.Gold_Rush_Lab.user.repository.UserRepository;
 import io.devyeoooo.Gold_Rush_Lab.user.repository.entity.UserEntity;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
@@ -29,9 +32,6 @@ public class MineServiceImpl implements MineService {
     private final MiningLogRepository miningLogRepository;
     private final MiningMetrics miningMetrics;
     private final MiningFailureClassifier miningFailureClassifier;
-
-    @Value("${gold-rush.mining.lock-strategy:none}")
-    private String configuredLockStrategy;
 
     /**
      * Mine 생성 함수
@@ -83,9 +83,9 @@ public class MineServiceImpl implements MineService {
      * @param amount
      */
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void mine(UUID sessionId, Long amount) {
-        LockStrategy strategy = LockStrategy.from(configuredLockStrategy);
+        LockStrategy strategy = LockStrategy.OPTIMISTIC;
         try {
             UserEntity foundUser = userRepository.findBySessionId(sessionId);
             MineEntity foundMine = foundUser.getMine();
@@ -96,8 +96,13 @@ public class MineServiceImpl implements MineService {
             miningLogRepository.save(
                     MiningLogEntity.create(foundUser, foundMine, amount)
             );
+
+            mineRepository.flush();
             recordSuccessAfterCommit(strategy);
-        } catch (RuntimeException exception) {
+        } catch (OptimisticLockingFailureException exception) {
+            throw exception;
+        }
+        catch (RuntimeException exception) {
             MiningFailureType failureType = miningFailureClassifier.classify(exception);
             miningMetrics.recordFailure(strategy, failureType);
             throw exception;

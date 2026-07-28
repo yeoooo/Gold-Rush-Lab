@@ -7,4 +7,6 @@ public interface MineRepository {
 
     MineEntity findFirstNotDepleted();
     MineEntity findById(Long id);
+
+    void flush();
 }
