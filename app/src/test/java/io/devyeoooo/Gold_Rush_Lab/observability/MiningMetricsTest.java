@@ -64,6 +64,20 @@ class MiningMetricsTest {
     }
 
     @Test
+    void 낙관적_락_flush와_충돌_감지_지연_시간을_기록한다() {
+        Timer.Sample sample = metrics.startOptimisticFlush();
+        LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(1));
+
+        metrics.stopOptimisticFlush(sample);
+
+        Timer timer = registry.get("gold.rush.mining.optimistic.flush")
+                .tag("strategy", "optimistic")
+                .timer();
+        assertEquals(1, timer.count());
+        assertTrue(timer.totalTime(TimeUnit.NANOSECONDS) > 0);
+    }
+
+    @Test
     void 실제_낙관적_락_재시도_카운터를_증가시킨다() {
         metrics.incrementOptimisticRetry();
 

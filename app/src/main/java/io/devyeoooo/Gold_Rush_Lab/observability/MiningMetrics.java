@@ -33,6 +33,21 @@ public class MiningMetrics {
                 .register(meterRegistry));
     }
 
+    public Timer.Sample startOptimisticFlush() {
+        return Timer.start(meterRegistry);
+    }
+
+    /**
+     * 낙관적 락의 UPDATE SQL 실행과 충돌 감지가 발생하는 flush 지연 시간을 기록한다.
+     */
+    public void stopOptimisticFlush(Timer.Sample sample) {
+        sample.stop(Timer.builder("gold.rush.mining.optimistic.flush")
+                .description("Optimistic update flush and conflict detection latency")
+                .tag(STRATEGY_TAG, LockStrategy.OPTIMISTIC.tagValue())
+                .publishPercentileHistogram()
+                .register(meterRegistry));
+    }
+
     public void incrementMiningSuccess(LockStrategy strategy) {
         counter("gold.rush.mining.success", strategy).increment();
     }

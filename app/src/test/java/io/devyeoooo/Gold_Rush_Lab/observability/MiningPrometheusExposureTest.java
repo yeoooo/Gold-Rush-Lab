@@ -24,6 +24,9 @@ class MiningPrometheusExposureTest {
         Timer.Sample sample = metrics.startLockWait();
         LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(1));
         metrics.stopLockWait(sample, LockStrategy.PESSIMISTIC);
+        Timer.Sample flushSample = metrics.startOptimisticFlush();
+        LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(1));
+        metrics.stopOptimisticFlush(flushSample);
 
         String scrape = registry.scrape();
         assertTrue(scrape.contains("gold_rush_mining_success_total"));
@@ -35,5 +38,9 @@ class MiningPrometheusExposureTest {
         assertTrue(scrape.contains("gold_rush_mining_lock_wait_seconds_sum"));
         assertTrue(scrape.contains("gold_rush_mining_lock_wait_seconds_max"));
         assertTrue(scrape.contains("gold_rush_mining_lock_wait_seconds_bucket"));
+        assertTrue(scrape.contains("gold_rush_mining_optimistic_flush_seconds_count"));
+        assertTrue(scrape.contains("gold_rush_mining_optimistic_flush_seconds_sum"));
+        assertTrue(scrape.contains("gold_rush_mining_optimistic_flush_seconds_max"));
+        assertTrue(scrape.contains("gold_rush_mining_optimistic_flush_seconds_bucket"));
     }
 }

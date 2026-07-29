@@ -11,6 +11,7 @@ import io.devyeoooo.Gold_Rush_Lab.observability.MiningFailureType;
 import io.devyeoooo.Gold_Rush_Lab.observability.MiningMetrics;
 import io.devyeoooo.Gold_Rush_Lab.user.repository.UserRepository;
 import io.devyeoooo.Gold_Rush_Lab.user.repository.entity.UserEntity;
+import io.micrometer.core.instrument.Timer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.OptimisticLockingFailureException;
@@ -97,7 +98,12 @@ public class MineServiceImpl implements MineService {
                     MiningLogEntity.create(foundUser, foundMine, amount)
             );
 
-            mineRepository.flush();
+            Timer.Sample flushSample = miningMetrics.startOptimisticFlush();
+            try {
+                mineRepository.flush();
+            } finally {
+                miningMetrics.stopOptimisticFlush(flushSample);
+            }
             recordSuccessAfterCommit(strategy);
         } catch (OptimisticLockingFailureException exception) {
             throw exception;
