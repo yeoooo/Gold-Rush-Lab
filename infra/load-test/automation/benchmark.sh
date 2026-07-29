@@ -232,6 +232,31 @@ format_count() {
     '
 }
 
+calculate_timer_average_ms() {
+    awk \
+        -v start_sum="$1" \
+        -v end_sum="$2" \
+        -v start_count="$3" \
+        -v end_count="$4" '
+            BEGIN {
+                # 애플리케이션 재시작으로 Timer가 초기화되면 종료값을 사용한다.
+                if (end_sum < start_sum || end_count < start_count) {
+                    delta_sum = end_sum
+                    delta_count = end_count
+                } else {
+                    delta_sum = end_sum - start_sum
+                    delta_count = end_count - start_count
+                }
+
+                if (delta_count <= 0) {
+                    print 0
+                } else {
+                    printf "%.9f", 1000 * delta_sum / delta_count
+                }
+            }
+        '
+}
+
 csv_row \
     "Record Type" "Target Type" "Target" "Version" \
     "Hikari Max Pool Size" "VU" "Run" "TPS (req/s)" \
@@ -239,7 +264,7 @@ csv_row \
     "Hikari Active Peak" "Avg Latency (ms)" "P95 (ms)" "P99 (ms)" \
     "Error Rate (%)" "초기 잔량" "사용자 총 채굴량" \
     "Mining Log 총 채굴량" "실제 잔량" "정합성" "Started At" "Finished At" \
-    "Optimistic Retry Count" \
+    "Optimistic Retry Count" "Optimistic Flush Avg (ms)" \
     > "$OUTPUT_FILE"
 
 prom_query() {
@@ -427,6 +452,13 @@ collect_peak_metrics() {
                 }
             }
         ')
+    OPTIMISTIC_FLUSH_SUM_END=$(prom_query \
+        "sum(gold_rush_mining_optimistic_flush_seconds_sum{strategy=\"optimistic\",${PROM_LABELS}}) or vector(0)")
+    OPTIMISTIC_FLUSH_COUNT_END=$(prom_query \
+        "sum(gold_rush_mining_optimistic_flush_seconds_count{strategy=\"optimistic\",${PROM_LABELS}}) or vector(0)")
+    OPTIMISTIC_FLUSH_AVG_MS=$(calculate_timer_average_ms \
+        "$OPTIMISTIC_FLUSH_SUM_START" "$OPTIMISTIC_FLUSH_SUM_END" \
+        "$OPTIMISTIC_FLUSH_COUNT_START" "$OPTIMISTIC_FLUSH_COUNT_END")
 
     BACKEND_TPS_BY_INSTANCE=$(prom_query_by_instance \
         "sum by (instance) (increase(http_server_requests_seconds_count{uri=\"${MINE_URI}\",method=\"POST\",${PROM_LABELS}}[${window}s])) / ${BENCHMARK_DURATION_SECONDS}")
@@ -514,6 +546,10 @@ run_k6() {
 
     OPTIMISTIC_RETRY_START=$(prom_query \
         "sum(gold_rush_optimistic_lock_retry_total{${PROM_LABELS}}) or vector(0)")
+    OPTIMISTIC_FLUSH_SUM_START=$(prom_query \
+        "sum(gold_rush_mining_optimistic_flush_seconds_sum{strategy=\"optimistic\",${PROM_LABELS}}) or vector(0)")
+    OPTIMISTIC_FLUSH_COUNT_START=$(prom_query \
+        "sum(gold_rush_mining_optimistic_flush_seconds_count{strategy=\"optimistic\",${PROM_LABELS}}) or vector(0)")
     STARTED_AT_EPOCH_MS=$(($(date +%s) * 1000))
     STARTED_AT=$(TZ=Asia/Seoul date +%Y-%m-%dT%H:%M:%S%z)
     start_epoch=$(date +%s)
@@ -578,7 +614,8 @@ append_run() {
         "$(format_count "$LOG_TOTAL_MINED")" \
         "$(format_count "$ACTUAL_REMAINING")" "$CONSISTENCY" \
         "$STARTED_AT" "$FINISHED_AT" \
-        "$(format_count "$OPTIMISTIC_RETRY_COUNT")" >> "$OUTPUT_FILE"
+        "$(format_count "$OPTIMISTIC_RETRY_COUNT")" \
+        "$(format_decimal "$OPTIMISTIC_FLUSH_AVG_MS")" >> "$OUTPUT_FILE"
 
     jq -cn \
         --argjson vu "$vu" \
@@ -597,6 +634,7 @@ append_run() {
         --argjson p99 "$P99" \
         --argjson errorRate "$ERROR_RATE" \
         --argjson optimisticRetryCount "$OPTIMISTIC_RETRY_COUNT" \
+        --argjson optimisticFlushAvgMs "$OPTIMISTIC_FLUSH_AVG_MS" \
         --argjson initial "$INITIAL_REMAINING" \
         --argjson userMined "$USER_TOTAL_MINED" \
         --argjson logMined "$LOG_TOTAL_MINED" \
@@ -619,6 +657,7 @@ append_run() {
             p99: $p99,
             errorRate: $errorRate,
             optimisticRetryCount: $optimisticRetryCount,
+            optimisticFlushAvgMs: $optimisticFlushAvgMs,
             initial: $initial,
             userMined: $userMined,
             logMined: $logMined,
@@ -648,7 +687,8 @@ append_warmup() {
         "$(format_count "$LOG_TOTAL_MINED")" \
         "$(format_count "$ACTUAL_REMAINING")" "$CONSISTENCY" \
         "$STARTED_AT" "$FINISHED_AT" \
-        "$(format_count "$OPTIMISTIC_RETRY_COUNT")" >> "$OUTPUT_FILE"
+        "$(format_count "$OPTIMISTIC_RETRY_COUNT")" \
+        "$(format_decimal "$OPTIMISTIC_FLUSH_AVG_MS")" >> "$OUTPUT_FILE"
 
     append_backend_rows \
         "WARMUP" "$WARMUP_VU" "1" "$STARTED_AT" "$FINISHED_AT" \
@@ -692,7 +732,7 @@ append_backend_rows() {
             "$(format_decimal "$instance_process_cpu")" \
             "$(format_decimal "$instance_heap")" \
             "" "" "" "" "" "" "" "" "" "" \
-            "$started_at" "$finished_at" "" >> "$OUTPUT_FILE"
+            "$started_at" "$finished_at" "" "" >> "$OUTPUT_FILE"
     done < <(jq -r 'keys[]' <<< "$tps_by_instance")
 }
 
@@ -727,6 +767,7 @@ append_average() {
             p99: mean("p99"),
             errorRate: mean("errorRate"),
             optimisticRetryCount: mean("optimisticRetryCount"),
+            optimisticFlushAvgMs: mean("optimisticFlushAvgMs"),
             initial: mean("initial"),
             userMined: mean("userMined"),
             logMined: mean("logMined"),
@@ -751,6 +792,7 @@ append_average() {
         "$(format_count "$(jq -r '.remaining' <<< "$average")")" \
         "$(jq -r '.consistent' <<< "$average")" "" "" \
         "$(format_count "$(jq -r '.optimisticRetryCount' <<< "$average")")" \
+        "$(format_decimal "$(jq -r '.optimisticFlushAvgMs' <<< "$average")")" \
         >> "$OUTPUT_FILE"
 
     append_backend_rows \
@@ -774,7 +816,7 @@ append_maximum_retry() {
     csv_row \
         "MAXIMUM" "LOAD_BALANCER" "$REQUEST_HOST" "$VERSION" \
         "" "$vu" "MAXIMUM" "" "" "" "" "" "" "" "" "" "" "" "" "" "" \
-        "" "" "$(format_count "$maximum_retry")" >> "$OUTPUT_FILE"
+        "" "" "$(format_count "$maximum_retry")" "" >> "$OUTPUT_FILE"
 
     echo "VU=$vu 최대 재시도 횟수 행을 기록했습니다."
 }

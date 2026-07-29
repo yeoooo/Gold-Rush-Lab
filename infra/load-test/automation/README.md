@@ -63,6 +63,9 @@ brew install libpq
 - `jvm_memory_used_bytes`, `jvm_memory_max_bytes`
 - `hikaricp_connections_active`, `hikaricp_connections_max`
 - `http_server_requests_seconds_count`
+- `gold_rush_optimistic_lock_retry_total`
+- `gold_rush_mining_optimistic_flush_seconds_sum`
+- `gold_rush_mining_optimistic_flush_seconds_count`
 
 ## 실행
 
@@ -136,6 +139,12 @@ error rate 등의 실수 지표는 소수점 아래 3자리로 반올림한다.
 `gold_rush_optimistic_lock_retry_total` 누적값 차이다. 메트릭이 아직 생성되지
 않았으면 `0`으로 처리한다. `RUN`에는 실행별 횟수, `AVERAGE`에는 같은 VU 반복
 실행의 평균, `MAXIMUM`에는 최댓값을 기록한다.
+
+`Optimistic Flush Avg (ms)`는 같은 구간의
+`gold_rush_mining_optimistic_flush_seconds_sum` 및 `_count` 누적값 차이로
+계산한 UPDATE flush와 충돌 감지의 평균 지연 시간이다. 메트릭이 아직
+생성되지 않았거나 실행 중 호출이 없으면 `0`으로 기록한다. `RUN`에는 실행별
+평균, `AVERAGE`에는 같은 VU 반복 실행 평균의 산술평균을 기록한다.
 
 분산 환경의 부하 분배와 인스턴스별 병목을 쉽게 필터링할 수 있도록 하나의
 실행을 대상별 CSV 행으로 나누어 기록한다.
