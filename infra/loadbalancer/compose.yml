@@ -37,22 +37,6 @@ services:
     networks:
       - lb-network
 
-  node-exporter:
-    image: prom/node-exporter:v1.10.1
-    container_name: gold-rush-node-exporter
-    restart: unless-stopped
-
-    network_mode: host
-    pid: host
-
-    command:
-      - "--path.rootfs=/host"
-
-    volumes:
-      - "/:/host:ro,rslave"
-
-    read_only: true
-
 networks:
   lb-network:
     driver: bridge
