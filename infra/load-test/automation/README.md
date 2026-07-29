@@ -63,6 +63,8 @@ brew install libpq
 - `jvm_memory_used_bytes`, `jvm_memory_max_bytes`
 - `hikaricp_connections_active`, `hikaricp_connections_max`
 - `http_server_requests_seconds_count`
+- `gold_rush_mining_lock_wait_seconds_sum`
+- `gold_rush_mining_lock_wait_seconds_count`
 
 ## 실행
 
@@ -130,6 +132,12 @@ error rate 등의 실수 지표는 소수점 아래 3자리로 반올림한다.
 `TPS (req/s)`는 k6가 로드밸런서를 통해 보낸 전체 요청을 최초 요청 시작부터
 마지막 응답 완료까지의 시간으로 나눈 값이다. 이 전체 TPS는 기존과 동일하게
 유지한다.
+
+`Pessimistic Lock Wait Avg (ms)`는 실행 직전과 Prometheus scrape 대기 후의
+`gold_rush_mining_lock_wait_seconds_sum` 및 `_count` 누적값 차이로 계산한
+비관적 락 획득 호출의 평균 지연 시간이다. 메트릭이 아직 생성되지 않았거나
+실행 중 호출이 없으면 `0`으로 기록한다. `RUN`에는 실행별 평균, `AVERAGE`에는
+같은 VU 반복 실행 평균의 산술평균을 기록한다.
 
 분산 환경의 부하 분배와 인스턴스별 병목을 쉽게 필터링할 수 있도록 하나의
 실행을 대상별 CSV 행으로 나누어 기록한다.
