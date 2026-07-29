@@ -1,3 +1,5 @@
 include:
   - db/compose.yml
+  - loadbalancer/compose.yml
   - monitoring/compose.yml
+  - node-exporter/compose.yml
