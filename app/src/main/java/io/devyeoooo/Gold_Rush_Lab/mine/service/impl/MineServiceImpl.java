@@ -11,6 +11,7 @@ import io.devyeoooo.Gold_Rush_Lab.observability.MiningFailureType;
 import io.devyeoooo.Gold_Rush_Lab.observability.MiningMetrics;
 import io.devyeoooo.Gold_Rush_Lab.user.repository.UserRepository;
 import io.devyeoooo.Gold_Rush_Lab.user.repository.entity.UserEntity;
+import io.micrometer.core.instrument.Timer;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -93,7 +94,13 @@ public class MineServiceImpl implements MineService {
              * UserEntity 에 연결된 MineEntity 는 fetchJoin 방식이나, Eager 로딩이 아니기 때문에 같은 쿼리가 한번 더 나가기 때문.
              * 결론적으로 성능상의 차이는 무시할 수 있는 정도로 판단했다.
              */
-            MineEntity foundMine = mineRepository.findByIdForUpdate(foundUser.getMine().getId());
+            Timer.Sample lockWaitSample = miningMetrics.startLockWait();
+            MineEntity foundMine;
+            try {
+                foundMine = mineRepository.findByIdForUpdate(foundUser.getMine().getId());
+            } finally {
+                miningMetrics.stopLockWait(lockWaitSample, strategy);
+            }
 
             foundMine.mine(amount);
             foundUser.addGold(amount);

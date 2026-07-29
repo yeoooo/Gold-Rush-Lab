@@ -59,12 +59,16 @@ class MineServiceImplTest {
         UserEntity user = UserEntity.create(mine);
         UUID sessionId = user.getSessionId();
         when(userRepository.findBySessionId(sessionId)).thenReturn(user);
+        when(mineRepository.findByIdForUpdate(null)).thenReturn(mine);
 
         mineService.mine(sessionId, 1L);
 
         verify(userRepository).findBySessionId(sessionId);
+        verify(mineRepository).findByIdForUpdate(null);
         assertEquals(99L, mine.getRemainingAmount());
         assertEquals(1L, user.getTotalMinedGold());
+        assertEquals(1, meterRegistry.get("gold.rush.mining.lock.wait")
+                .tag("strategy", "none").timer().count());
         assertEquals(1.0, meterRegistry.get("gold.rush.mining.success")
                 .tag("strategy", "none").counter().count());
     }
