@@ -4,6 +4,7 @@ import io.devyeoooo.Gold_Rush_Lab.comm.exception.GlobalExceptionHandler;
 import io.devyeoooo.Gold_Rush_Lab.comm.exception.MineDepletedException;
 import io.devyeoooo.Gold_Rush_Lab.comm.exception.UserNotFoundException;
 import io.devyeoooo.Gold_Rush_Lab.mine.repository.entity.MineEntity;
+import io.devyeoooo.Gold_Rush_Lab.mine.service.DistributedMiningService;
 import io.devyeoooo.Gold_Rush_Lab.mine.service.MineService;
 import io.devyeoooo.Gold_Rush_Lab.user.repository.entity.UserEntity;
 import io.devyeoooo.Gold_Rush_Lab.user.service.UserService;
@@ -39,11 +40,18 @@ class MineControllerTest {
     @Mock
     private MineService mineService;
 
+    @Mock
+    private DistributedMiningService distributedMiningService;
+
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        mockMvc = standaloneSetup(new MineController(userService, mineService))
+        mockMvc = standaloneSetup(new MineController(
+                userService,
+                mineService,
+                distributedMiningService
+        ))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
     }
@@ -94,7 +102,7 @@ class MineControllerTest {
                 .andExpect(jsonPath("$.data.totalGold").value(1))
                 .andExpect(jsonPath("$.data.remained").value(99));
 
-        verify(mineService).mine(sessionId, 1L);
+        verify(distributedMiningService).mine(sessionId, 1L);
         verify(userService).findBySessionId(sessionId);
     }
 
@@ -116,7 +124,8 @@ class MineControllerTest {
     @Test
     void 사용자를_찾을_수_없으면_찾을_수_없음_응답을_반환한다() throws Exception {
         UUID sessionId = UUID.randomUUID();
-        doThrow(new UserNotFoundException()).when(mineService).mine(sessionId, 1L);
+        doThrow(new UserNotFoundException())
+                .when(distributedMiningService).mine(sessionId, 1L);
 
         mockMvc.perform(post(MINE_URL).param("sessionId", sessionId.toString()))
                 .andExpect(status().isNotFound())
@@ -126,7 +135,8 @@ class MineControllerTest {
     @Test
     void 광산의_잔량이_부족하면_충돌_응답을_반환한다() throws Exception {
         UUID sessionId = UUID.randomUUID();
-        doThrow(new MineDepletedException()).when(mineService).mine(sessionId, 1L);
+        doThrow(new MineDepletedException())
+                .when(distributedMiningService).mine(sessionId, 1L);
 
         mockMvc.perform(post(MINE_URL).param("sessionId", sessionId.toString()))
                 .andExpect(status().isConflict())
@@ -137,7 +147,7 @@ class MineControllerTest {
     void 예상하지_못한_예외가_발생하면_서버_오류를_반환한다() throws Exception {
         UUID sessionId = UUID.randomUUID();
         doThrow(new RuntimeException("노출되면 안 되는 메시지"))
-                .when(mineService).mine(sessionId, 1L);
+                .when(distributedMiningService).mine(sessionId, 1L);
 
         mockMvc.perform(post(MINE_URL).param("sessionId", sessionId.toString()))
                 .andExpect(status().isInternalServerError())

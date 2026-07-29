@@ -2,6 +2,7 @@ include:
   - ../infra/db/compose.yml
   - ../infra/loadbalancer/compose.yml
   - ../infra/monitoring/compose.yml
+  - ../infra/redis/compose.yml
 
 services:
   gold-rush-app:
@@ -12,6 +13,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      gold-rush-redis:
+        condition: service_healthy
     environment:
       POSTGRES_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-goldrush}
       POSTGRES_DB: ${POSTGRES_DB:-goldrush}
@@ -21,4 +24,5 @@ services:
     ports:
       - "${APP_PORT:-8080}:8080"
     networks:
+      - default
       - goldrush-db-network

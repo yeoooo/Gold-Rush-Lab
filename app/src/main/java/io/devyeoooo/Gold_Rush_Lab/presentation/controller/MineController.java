@@ -1,6 +1,7 @@
 package io.devyeoooo.Gold_Rush_Lab.presentation.controller;
 
 import io.devyeoooo.Gold_Rush_Lab.comm.exception.InvalidRequestParameterException;
+import io.devyeoooo.Gold_Rush_Lab.mine.service.DistributedMiningService;
 import io.devyeoooo.Gold_Rush_Lab.mine.service.MineService;
 import io.devyeoooo.Gold_Rush_Lab.presentation.dto.MineRequestDto;
 import io.devyeoooo.Gold_Rush_Lab.presentation.dto.comm.ApiResponse;
@@ -20,6 +21,7 @@ public class MineController {
 
     private final UserService userService;
     private final MineService mineService;
+    private final DistributedMiningService distributedMiningService;
 
     @PostMapping("/mines")
     public ApiResponse<MineDto> createMine(
@@ -37,7 +39,8 @@ public class MineController {
     public ApiResponse<MineRequestDto> mine(
             @RequestParam(name = "sessionId") UUID sessionId
             ) {
-        mineService.mine(sessionId, 1L);
+//        mineService.mine(sessionId, 1L);
+        distributedMiningService.mine(sessionId, 1L);
         UserEntity foundUser = userService.findBySessionId(sessionId);
 
         Long totalMinedGold = foundUser.getTotalMinedGold();
