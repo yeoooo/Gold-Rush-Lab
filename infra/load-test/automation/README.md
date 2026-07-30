@@ -172,16 +172,19 @@ LOCK_WAIT_POLL_SECONDS=0.1
 메인 `results.csv`에는 같은 대기를 `PID`, virtual transaction,
 `waitstart`, lock 대상의 조합으로 묶은 뒤 다음 값을 기록한다.
 
-- `Observed Lock Waits`: 실행 중 한 번 이상 관측한 고유 lock wait 수
-- `Observed Lock Wait Total (ms)`: 각 wait에서 마지막으로 관측한 시간의 합
-- `Observed Lock Wait Avg (ms)`: 관측한 wait의 평균 시간
-- `Observed Lock Wait Max (ms)`: 가장 길게 관측된 wait 시간
-- `Lock Wait Poll Interval (s)`: 실행에 사용한 관측 간격
+- `Lock Waits`: 실행 중 한 번 이상 관측한 고유 lock wait 수
+- `Lock Wait Total`: 각 wait에서 마지막으로 관측한 시간의 합(ms)
+- `Lock Wait Avg`: 관측한 wait의 평균 시간(ms)
+- `Lock Wait Max`: 가장 길게 관측된 wait 시간(ms)
 
 폴링 사이에 시작하고 끝난 짧은 lock wait는 수집할 수 없다. 또한 각 wait의
 종료 직전이 아니라 마지막 폴링 시점까지 측정하므로 Total, Avg, Max는 실제
 DB lock wait의 하한이다. 더 짧은 간격은 관측 누락을 줄이지만 PostgreSQL
 연결과 `pg_locks` 조회 부하를 증가시킨다.
+
+`Optimistic Retry Count`는 실행 구간의
+`gold_rush_optimistic_lock_retry_total` 증가량이다. 메트릭이 아직 생성되지
+않은 경우에는 0으로 기록한다.
 
 ```text
 초기 잔량 = 사용자 총 채굴량 + 실제 잔량
