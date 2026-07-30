@@ -46,8 +46,10 @@ STABLE_SAMPLES=${STABLE_SAMPLES:-3}
 STABLE_POLL_SECONDS=${STABLE_POLL_SECONDS:-5}
 STABLE_TIMEOUT_SECONDS=${STABLE_TIMEOUT_SECONDS:-600}
 POST_STABLE_COOLDOWN_SECONDS=${POST_STABLE_COOLDOWN_SECONDS:-30}
+LOCK_WAIT_POLL_SECONDS=${LOCK_WAIT_POLL_SECONDS:-1}
 OUTPUT_FILE=${OUTPUT_FILE:-}
 PSQL_BIN=${PSQL_BIN:-}
+LOCK_WAIT_COLLECTOR_PID=
 
 usage() {
     cat <<'EOF'
@@ -72,6 +74,7 @@ Options:
   --output FILE               생성할 CSV 경로
   --prom-labels MATCHERS      Prometheus label matcher(중괄호 제외)
   --mine-uri PATH             TPS 안정화 확인용 서버 URI label
+  --lock-wait-poll-seconds N  pg_locks 관측 간격(초, 기본 0.1)
   --help
 
 안정화 기준은 .env.example의 STABLE_* 환경변수로 조정할 수 있습니다.
@@ -92,6 +95,7 @@ while (($# > 0)); do
         --output) OUTPUT_FILE=${2:?}; shift 2 ;;
         --prom-labels) PROM_LABELS=${2:?}; shift 2 ;;
         --mine-uri) MINE_URI=${2:?}; shift 2 ;;
+        --lock-wait-poll-seconds) LOCK_WAIT_POLL_SECONDS=${2:?}; shift 2 ;;
         --help|-h) usage; exit 0 ;;
         *) echo "알 수 없는 옵션: $1" >&2; usage >&2; exit 2 ;;
     esac
@@ -120,6 +124,16 @@ require_positive_integer() {
     fi
 }
 
+require_positive_number() {
+    local name=$1
+    local value=$2
+    if ! awk -v value="$value" \
+        'BEGIN { exit !(value ~ /^[0-9]+([.][0-9]+)?$/ && value + 0 > 0) }'; then
+        echo "$name 값은 0보다 큰 숫자여야 합니다: $value" >&2
+        exit 2
+    fi
+}
+
 require_value VERSION "$VERSION"
 require_value REQUEST_HOST "$REQUEST_HOST"
 require_value MONITOR_HOST "$MONITOR_HOST"
@@ -137,6 +151,7 @@ require_positive_integer STABLE_SAMPLES "$STABLE_SAMPLES"
 require_positive_integer STABLE_POLL_SECONDS "$STABLE_POLL_SECONDS"
 require_positive_integer STABLE_TIMEOUT_SECONDS "$STABLE_TIMEOUT_SECONDS"
 require_positive_integer POST_STABLE_COOLDOWN_SECONDS "$POST_STABLE_COOLDOWN_SECONDS"
+require_positive_number LOCK_WAIT_POLL_SECONDS "$LOCK_WAIT_POLL_SECONDS"
 
 if [[ ! "$SCENARIO" =~ ^[a-zA-Z0-9_-]+$ ]]; then
     echo "시나리오 이름에는 영문, 숫자, _, -만 사용할 수 있습니다." >&2
@@ -184,7 +199,7 @@ GRAFANA_URL=${GRAFANA_URL%/}
 
 RUN_ID=$(TZ=Asia/Seoul date +%Y%m%dT%H%M%S%z)
 RESULT_DIR="$SCRIPT_DIR/results/${VERSION}_${RUN_ID}"
-mkdir -p "$RESULT_DIR/logs" "$RESULT_DIR/summaries"
+mkdir -p "$RESULT_DIR/logs" "$RESULT_DIR/summaries" "$RESULT_DIR/lock-waits"
 
 if [[ -z "$OUTPUT_FILE" ]]; then
     OUTPUT_FILE="$RESULT_DIR/results.csv"
@@ -237,9 +252,122 @@ csv_row \
     "Hikari Max Pool Size" "VU" "Run" "TPS (req/s)" \
     "System CPU Peak (%)" "Process CPU Peak (%)" "JVM Heap Peak (%)" \
     "Hikari Active Peak" "Avg Latency (ms)" "P95 (ms)" "P99 (ms)" \
-    "Error Rate (%)" "초기 잔량" "사용자 총 채굴량" \
+    "Error Rate (%)" "Observed Lock Waits" "Observed Lock Wait Total (ms)" \
+    "Observed Lock Wait Avg (ms)" "Observed Lock Wait Max (ms)" \
+    "Lock Wait Poll Interval (s)" "초기 잔량" "사용자 총 채굴량" \
     "Mining Log 총 채굴량" "실제 잔량" "정합성" "Started At" "Finished At" \
     > "$OUTPUT_FILE"
+
+cleanup_lock_wait_collector() {
+    if [[ -n "$LOCK_WAIT_COLLECTOR_PID" ]]; then
+        if kill -0 "$LOCK_WAIT_COLLECTOR_PID" 2>/dev/null; then
+            kill "$LOCK_WAIT_COLLECTOR_PID" 2>/dev/null || true
+        fi
+        wait "$LOCK_WAIT_COLLECTOR_PID" 2>/dev/null || true
+        LOCK_WAIT_COLLECTOR_PID=
+    fi
+}
+
+trap cleanup_lock_wait_collector EXIT
+
+start_lock_wait_collector() {
+    local output_file=$1
+    local watch_sql
+
+    csv_row \
+        "Sampled At" "PID" "Backend XID" "Virtual Transaction" "Wait Started At" \
+        "Observed Wait (ms)" "Lock Type" "Mode" "Relation" "Page" "Tuple" \
+        "Target Transaction ID" "Blocking PIDs" > "$output_file"
+
+    watch_sql=$(cat <<SQL
+SELECT
+    clock_timestamp() AS sampled_at,
+    l.pid,
+    COALESCE(a.backend_xid::text, '') AS backend_xid,
+    l.virtualtransaction,
+    l.waitstart,
+    round(
+        EXTRACT(EPOCH FROM (clock_timestamp() - l.waitstart)) * 1000,
+        3
+    ) AS observed_wait_ms,
+    l.locktype,
+    l.mode,
+    replace(COALESCE(l.relation::regclass::text, ''), ',', ' ') AS relation,
+    COALESCE(l.page::text, '') AS page,
+    COALESCE(l.tuple::text, '') AS tuple,
+    COALESCE(l.transactionid::text, '') AS target_transaction_id,
+    array_to_string(pg_blocking_pids(l.pid), ';') AS blocking_pids
+FROM pg_locks l
+JOIN pg_stat_activity a ON a.pid = l.pid
+WHERE NOT l.granted
+  AND l.waitstart IS NOT NULL
+  AND a.datname = current_database()
+  AND l.pid <> pg_backend_pid()
+ORDER BY l.waitstart, l.pid;
+\watch $LOCK_WAIT_POLL_SECONDS
+SQL
+)
+
+    "$PSQL_BIN" "$DB_URL" \
+        -X -q -t --csv \
+        -v ON_ERROR_STOP=1 \
+        <<< "$watch_sql" >> "$output_file" &
+    LOCK_WAIT_COLLECTOR_PID=$!
+}
+
+stop_lock_wait_collector() {
+    local collector_pid=$LOCK_WAIT_COLLECTOR_PID
+    local collector_was_running=true
+
+    if [[ -z "$collector_pid" ]]; then
+        return
+    fi
+
+    if kill -0 "$collector_pid" 2>/dev/null; then
+        kill "$collector_pid" 2>/dev/null || true
+    else
+        echo "경고: lock wait 수집기가 실행 중 먼저 종료되었습니다." >&2
+        collector_was_running=false
+    fi
+    wait "$collector_pid" 2>/dev/null || true
+    LOCK_WAIT_COLLECTOR_PID=
+
+    [[ "$collector_was_running" == true ]]
+}
+
+summarize_lock_waits() {
+    local input_file=$1
+    local summary
+
+    summary=$(awk -F ',' '
+        NR == 1 { next }
+        NF >= 13 {
+            key = $2 SUBSEP $4 SUBSEP $5 SUBSEP $7 SUBSEP $8 SUBSEP \
+                $9 SUBSEP $10 SUBSEP $11 SUBSEP $12
+            duration = $6 + 0
+            if (!(key in maximum) || duration > maximum[key]) {
+                maximum[key] = duration
+            }
+        }
+        END {
+            count = 0
+            total = 0
+            max = 0
+            for (key in maximum) {
+                count++
+                total += maximum[key]
+                if (maximum[key] > max) {
+                    max = maximum[key]
+                }
+            }
+            average = count == 0 ? 0 : total / count
+            printf "%d|%.3f|%.3f|%.3f\n", count, total, average, max
+        }
+    ' "$input_file")
+
+    IFS='|' read -r LOCK_WAIT_COUNT LOCK_WAIT_TOTAL_MS LOCK_WAIT_AVG_MS \
+        LOCK_WAIT_MAX_MS <<< "$summary"
+}
 
 prom_query() {
     local query=$1
@@ -492,7 +620,10 @@ run_k6() {
     local prefix=$4
     local summary_file="$RESULT_DIR/summaries/${prefix}_vu${vu}_run${run}.json"
     local log_file="$RESULT_DIR/logs/${prefix}_vu${vu}_run${run}.log"
+    local lock_wait_file="$RESULT_DIR/lock-waits/${prefix}_vu${vu}_run${run}.csv"
     local start_epoch
+    local k6_status=0
+    local collector_status=0
     CURRENT_MINE_AMOUNT=$((vu * iterations))
 
     reset_database
@@ -502,16 +633,26 @@ run_k6() {
     start_epoch=$(date +%s)
     echo "[$STARTED_AT] $prefix: VU=$vu, run=$run, iterations=$iterations, mineAmount=$CURRENT_MINE_AMOUNT"
 
-    if ! k6 run \
+    start_lock_wait_collector "$lock_wait_file"
+    sleep "$LOCK_WAIT_POLL_SECONDS"
+    k6 run \
         -e "BASE_URL=$REQUEST_HOST" \
         -e "MINE_AMOUNT=$CURRENT_MINE_AMOUNT" \
         -e "USER_COUNT=$vu" \
         -e "ITERATIONS=$iterations" \
         -e "HOTSPOT_MAX_DURATION=$MAX_DURATION" \
         --summary-export "$summary_file" "$SCENARIO_FILE" \
-        > "$log_file" 2>&1; then
+        > "$log_file" 2>&1 || k6_status=$?
+    stop_lock_wait_collector || collector_status=$?
+    summarize_lock_waits "$lock_wait_file"
+
+    if ((k6_status != 0)); then
         echo "k6 실행에 실패했습니다. 로그: $log_file" >&2
         tail -n 40 "$log_file" >&2
+        return 1
+    fi
+    if ((collector_status != 0)); then
+        echo "lock wait 수집에 실패했습니다: $lock_wait_file" >&2
         return 1
     fi
 
@@ -556,6 +697,11 @@ append_run() {
         "$(format_decimal "$P95")" \
         "$(format_decimal "$P99")" \
         "$(format_decimal "$ERROR_RATE")" \
+        "$LOCK_WAIT_COUNT" \
+        "$(format_decimal "$LOCK_WAIT_TOTAL_MS")" \
+        "$(format_decimal "$LOCK_WAIT_AVG_MS")" \
+        "$(format_decimal "$LOCK_WAIT_MAX_MS")" \
+        "$LOCK_WAIT_POLL_SECONDS" \
         "$(format_count "$INITIAL_REMAINING")" \
         "$(format_count "$USER_TOTAL_MINED")" \
         "$(format_count "$LOG_TOTAL_MINED")" \
@@ -578,6 +724,10 @@ append_run() {
         --argjson p95 "$P95" \
         --argjson p99 "$P99" \
         --argjson errorRate "$ERROR_RATE" \
+        --argjson lockWaitCount "$LOCK_WAIT_COUNT" \
+        --argjson lockWaitTotalMs "$LOCK_WAIT_TOTAL_MS" \
+        --argjson lockWaitAvgMs "$LOCK_WAIT_AVG_MS" \
+        --argjson lockWaitMaxMs "$LOCK_WAIT_MAX_MS" \
         --argjson initial "$INITIAL_REMAINING" \
         --argjson userMined "$USER_TOTAL_MINED" \
         --argjson logMined "$LOG_TOTAL_MINED" \
@@ -599,6 +749,10 @@ append_run() {
             p95: $p95,
             p99: $p99,
             errorRate: $errorRate,
+            lockWaitCount: $lockWaitCount,
+            lockWaitTotalMs: $lockWaitTotalMs,
+            lockWaitAvgMs: $lockWaitAvgMs,
+            lockWaitMaxMs: $lockWaitMaxMs,
             initial: $initial,
             userMined: $userMined,
             logMined: $logMined,
@@ -623,6 +777,11 @@ append_warmup() {
         "$(format_decimal "$P95")" \
         "$(format_decimal "$P99")" \
         "$(format_decimal "$ERROR_RATE")" \
+        "$LOCK_WAIT_COUNT" \
+        "$(format_decimal "$LOCK_WAIT_TOTAL_MS")" \
+        "$(format_decimal "$LOCK_WAIT_AVG_MS")" \
+        "$(format_decimal "$LOCK_WAIT_MAX_MS")" \
+        "$LOCK_WAIT_POLL_SECONDS" \
         "$(format_count "$INITIAL_REMAINING")" \
         "$(format_count "$USER_TOTAL_MINED")" \
         "$(format_count "$LOG_TOTAL_MINED")" \
@@ -670,7 +829,7 @@ append_backend_rows() {
             "$(format_decimal "$instance_system_cpu")" \
             "$(format_decimal "$instance_process_cpu")" \
             "$(format_decimal "$instance_heap")" \
-            "" "" "" "" "" "" "" "" "" "" \
+            "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" \
             "$started_at" "$finished_at" >> "$OUTPUT_FILE"
     done < <(jq -r 'keys[]' <<< "$tps_by_instance")
 }
@@ -705,6 +864,10 @@ append_average() {
             p95: mean("p95"),
             p99: mean("p99"),
             errorRate: mean("errorRate"),
+            lockWaitCount: mean("lockWaitCount"),
+            lockWaitTotalMs: mean("lockWaitTotalMs"),
+            lockWaitAvgMs: mean("lockWaitAvgMs"),
+            lockWaitMaxMs: mean("lockWaitMaxMs"),
             initial: mean("initial"),
             userMined: mean("userMined"),
             logMined: mean("logMined"),
@@ -723,6 +886,11 @@ append_average() {
         "$(format_decimal "$(jq -r '.p95' <<< "$average")")" \
         "$(format_decimal "$(jq -r '.p99' <<< "$average")")" \
         "$(format_decimal "$(jq -r '.errorRate' <<< "$average")")" \
+        "$(format_decimal "$(jq -r '.lockWaitCount' <<< "$average")")" \
+        "$(format_decimal "$(jq -r '.lockWaitTotalMs' <<< "$average")")" \
+        "$(format_decimal "$(jq -r '.lockWaitAvgMs' <<< "$average")")" \
+        "$(format_decimal "$(jq -r '.lockWaitMaxMs' <<< "$average")")" \
+        "$LOCK_WAIT_POLL_SECONDS" \
         "$(format_count "$(jq -r '.initial' <<< "$average")")" \
         "$(format_count "$(jq -r '.userMined' <<< "$average")")" \
         "$(format_count "$(jq -r '.logMined' <<< "$average")")" \

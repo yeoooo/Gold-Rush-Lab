@@ -93,6 +93,9 @@ cp .env.example .env
 results/{version}_{UTC 실행시각}/
 ├── results.csv
 ├── runs.jsonl
+├── lock-waits/
+│   ├── warmup_vu10_run1.csv
+│   └── benchmark_vu100_run1.csv
 ├── logs/
 └── summaries/
 ```
@@ -152,6 +155,33 @@ RUN,BACKEND,192.168.0.46:8080,...,247.691 req/s,...
 
 `AVERAGE`도 같은 구조이며, 백엔드 행은 같은 VU의 반복 실행 값을
 인스턴스별로 산술평균한다.
+
+각 k6 실행 중에는 별도 PostgreSQL 연결이 `pg_locks`의 `granted=false` 행을
+주기적으로 조회한다. `waitstart`부터 관측 시점까지의 DB 내부 lock wait를
+`lock-waits/{실행}.csv`에 원본 샘플로 기록한다. 기본 관측 간격은 0.1초이며
+다음 환경변수 또는 CLI 옵션으로 변경할 수 있다.
+
+```dotenv
+LOCK_WAIT_POLL_SECONDS=0.1
+```
+
+```sh
+./benchmark.sh ... --lock-wait-poll-seconds 0.05
+```
+
+메인 `results.csv`에는 같은 대기를 `PID`, virtual transaction,
+`waitstart`, lock 대상의 조합으로 묶은 뒤 다음 값을 기록한다.
+
+- `Observed Lock Waits`: 실행 중 한 번 이상 관측한 고유 lock wait 수
+- `Observed Lock Wait Total (ms)`: 각 wait에서 마지막으로 관측한 시간의 합
+- `Observed Lock Wait Avg (ms)`: 관측한 wait의 평균 시간
+- `Observed Lock Wait Max (ms)`: 가장 길게 관측된 wait 시간
+- `Lock Wait Poll Interval (s)`: 실행에 사용한 관측 간격
+
+폴링 사이에 시작하고 끝난 짧은 lock wait는 수집할 수 없다. 또한 각 wait의
+종료 직전이 아니라 마지막 폴링 시점까지 측정하므로 Total, Avg, Max는 실제
+DB lock wait의 하한이다. 더 짧은 간격은 관측 누락을 줄이지만 PostgreSQL
+연결과 `pg_locks` 조회 부하를 증가시킨다.
 
 ```text
 초기 잔량 = 사용자 총 채굴량 + 실제 잔량
