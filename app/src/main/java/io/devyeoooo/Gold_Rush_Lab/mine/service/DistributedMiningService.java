@@ -25,7 +25,7 @@ public class DistributedMiningService {
 
         try {
 
-            acquired = lock.tryLock(3, TimeUnit.SECONDS);
+            acquired = lock.tryLock(60, TimeUnit.SECONDS);
 
             if (!acquired) {
                 throw new LockAcquireException();
