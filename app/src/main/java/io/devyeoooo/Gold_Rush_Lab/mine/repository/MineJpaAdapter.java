@@ -18,6 +18,11 @@ public class MineJpaAdapter implements MineRepository {
     }
 
     @Override
+    public int decreaseRemainingAmount(Long mineId, Long amount) {
+        return mineJpaRepository.decreaseRemainingAmount(mineId, amount);
+    }
+
+    @Override
     public MineEntity findFirstNotDepleted() {
         return mineJpaRepository.findFirstByRemainingAmountGreaterThanOrderByIdAsc(0)
                 .orElseThrow(ActiveMineNotFoundException::new);

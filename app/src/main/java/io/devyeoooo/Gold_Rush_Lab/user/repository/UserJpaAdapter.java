@@ -30,4 +30,9 @@ public class UserJpaAdapter implements UserRepository {
         return userJpaRepository.findBySessionId(sessionId)
                 .orElseThrow(UserNotFoundException::new);
     }
+
+    @Override
+    public int increaseTotalMinedGold(UUID sessionId, Long amount) {
+        return userJpaRepository.increaseTotalMinedGold(sessionId, amount);
+    }
 }

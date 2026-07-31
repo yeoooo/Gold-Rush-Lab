@@ -1,5 +1,7 @@
 package io.devyeoooo.Gold_Rush_Lab.mine.service.impl;
 
+import io.devyeoooo.Gold_Rush_Lab.comm.exception.MineDepletedException;
+import io.devyeoooo.Gold_Rush_Lab.comm.exception.UserNotFoundException;
 import io.devyeoooo.Gold_Rush_Lab.mine.repository.MineRepository;
 import io.devyeoooo.Gold_Rush_Lab.mine.repository.entity.MineEntity;
 import io.devyeoooo.Gold_Rush_Lab.mine.service.MineService;
@@ -76,7 +78,7 @@ public class MineServiceImpl implements MineService {
      *
      * 1. sessionId 기반 유저 조회, 유저의 금광 조회
      * 2. 유저의 골드 증가
-     * 3. 광산의 잔량 감소
+     * 3. 광산의 잔량 감소 (원자적 UPDATE)
      * 4. 로그 생성
      *
      * @param sessionId
@@ -90,8 +92,18 @@ public class MineServiceImpl implements MineService {
             UserEntity foundUser = userRepository.findBySessionId(sessionId);
             MineEntity foundMine = foundUser.getMine();
 
-            foundMine.mine(amount);
-            foundUser.addGold(amount);
+            int updatedMine = mineRepository.decreaseRemainingAmount(foundMine.getId(), amount);
+            if (updatedMine == 0) {
+                throw new MineDepletedException();
+            }
+
+            int updatedUser = userRepository.increaseTotalMinedGold(sessionId, amount);
+            if (updatedUser == 0) {
+                throw new UserNotFoundException();
+            }
+
+            foundUser = userRepository.findBySessionId(foundUser.getSessionId());
+            foundMine = foundUser.getMine();
 
             miningLogRepository.save(
                     MiningLogEntity.create(foundUser, foundMine, amount)

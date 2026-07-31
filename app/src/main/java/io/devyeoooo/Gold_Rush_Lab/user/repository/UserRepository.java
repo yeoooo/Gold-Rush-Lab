@@ -10,4 +10,5 @@ public interface UserRepository {
     UserEntity save(UserEntity user);
     UserEntity findById(Long id);
     UserEntity findBySessionId(UUID sessionId);
+    int increaseTotalMinedGold(UUID sessionId, Long amount);
 }
