@@ -795,14 +795,14 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(rate(gold_rush_mining_lock_wait_seconds_sum{job=\"gold-rush-app\"}[$__rate_interval])) / clamp_min(sum(rate(gold_rush_mining_lock_wait_seconds_count{job=\"gold-rush-app\"}[$__rate_interval])), 1e-9)",
+          "expr": "sum(rate(gold_rush_mining_lock_wait_seconds_sum{job=\"gold-rush-app\",strategy=\"redis\"}[$__rate_interval])) / clamp_min(sum(rate(gold_rush_mining_lock_wait_seconds_count{job=\"gold-rush-app\",strategy=\"redis\"}[$__rate_interval])), 1e-9)",
           "instant": true,
           "legendFormat": "Average wait",
           "range": false,
           "refId": "A"
         }
       ],
-      "title": "Lock Wait",
+      "title": "Redis Lock Wait",
       "type": "stat",
       "interval": "1s"
     },
@@ -893,14 +893,14 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(rate(gold_rush_lock_timeout_total{job=\"gold-rush-app\"}[$__rate_interval]))",
+          "expr": "sum(rate(gold_rush_lock_timeout_total{job=\"gold-rush-app\",strategy=\"redis\"}[$__rate_interval]))",
           "instant": true,
           "legendFormat": "Timeouts/s",
           "range": false,
           "refId": "A"
         }
       ],
-      "title": "Timeout",
+      "title": "Redis Lock Timeout",
       "type": "stat",
       "interval": "1s"
     },

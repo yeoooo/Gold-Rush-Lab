@@ -251,10 +251,14 @@ csv_row \
     "Record Type" "Target Type" "Target" "Version" \
     "Hikari Max Pool Size" "VU" "Run" "TPS (req/s)" \
     "System CPU Peak (%)" "Process CPU Peak (%)" "JVM Heap Peak (%)" \
+    "Tomcat Available Threads Min" "Tomcat Available Threads Avg" \
     "Hikari Active Peak" "Avg Latency (ms)" "P95 (ms)" "P99 (ms)" \
-    "Error Rate (%)" "Observed Lock Waits" "Observed Lock Wait Total (ms)" \
-    "Observed Lock Wait Avg (ms)" "Observed Lock Wait Max (ms)" \
-    "Lock Wait Poll Interval (s)" "초기 잔량" "사용자 총 채굴량" \
+    "Error Rate (%)" "DB Observed Lock Waits" "DB Lock Wait Total (ms)" \
+    "DB Lock Wait Avg (ms)" "DB Lock Wait Max (ms)" \
+    "DB Lock Wait Poll Interval (s)" \
+    "Redis Lock Wait Samples" "Redis Lock Wait Total (ms)" \
+    "Redis Lock Wait Avg (ms)" "Redis Lock Wait Max (ms)" \
+    "Redis Lock Timeout Count" "초기 잔량" "사용자 총 채굴량" \
     "Mining Log 총 채굴량" "실제 잔량" "정합성" "Started At" "Finished At" \
     > "$OUTPUT_FILE"
 
@@ -540,6 +544,18 @@ collect_peak_metrics() {
         "max_over_time((sum(hikaricp_connections_active{${PROM_LABELS}}))[${window}s:5s])")
     HIKARI_MAX=$(prom_query \
         "sum(hikaricp_connections_max{${PROM_LABELS}})")
+    REDIS_LOCK_WAIT_COUNT=$(prom_query \
+        "sum(increase(gold_rush_mining_lock_wait_seconds_count{strategy=\"redis\",${PROM_LABELS}}[${window}s])) or vector(0)")
+    REDIS_LOCK_WAIT_TOTAL_MS=$(prom_query \
+        "1000 * (sum(increase(gold_rush_mining_lock_wait_seconds_sum{strategy=\"redis\",${PROM_LABELS}}[${window}s])) or vector(0))")
+    REDIS_LOCK_WAIT_AVG_MS=$(awk \
+        -v total="$REDIS_LOCK_WAIT_TOTAL_MS" \
+        -v count="$REDIS_LOCK_WAIT_COUNT" \
+        'BEGIN { if (count == 0) print 0; else printf "%.6f", total / count }')
+    REDIS_LOCK_WAIT_MAX_MS=$(prom_query \
+        "1000 * (max(max_over_time(gold_rush_mining_lock_wait_seconds_max{strategy=\"redis\",${PROM_LABELS}}[${window}s])) or vector(0))")
+    REDIS_LOCK_TIMEOUT_COUNT=$(prom_query \
+        "sum(increase(gold_rush_lock_timeout_total{strategy=\"redis\",${PROM_LABELS}}[${window}s])) or vector(0)")
 
     BACKEND_TPS_BY_INSTANCE=$(prom_query_by_instance \
         "sum by (instance) (increase(http_server_requests_seconds_count{uri=\"${MINE_URI}\",method=\"POST\",${PROM_LABELS}}[${window}s])) / ${BENCHMARK_DURATION_SECONDS}")
@@ -549,6 +565,10 @@ collect_peak_metrics() {
         "max_over_time((100 * process_cpu_usage{${PROM_LABELS}})[${window}s:5s])")
     JVM_HEAP_PEAK_BY_INSTANCE=$(prom_query_by_instance \
         "max_over_time((100 * sum by (instance) (jvm_memory_used_bytes{area=\"heap\",${PROM_LABELS}}) / clamp_min(sum by (instance) (jvm_memory_max_bytes{area=\"heap\",${PROM_LABELS}}), 1))[${window}s:5s])")
+    TOMCAT_AVAILABLE_THREADS_MIN_BY_INSTANCE=$(prom_query_by_instance \
+        "min_over_time((clamp_min(sum by (instance) (tomcat_threads_config_max_threads{${PROM_LABELS}}) - sum by (instance) (tomcat_threads_busy_threads{${PROM_LABELS}}), 0))[${window}s:1s])")
+    TOMCAT_AVAILABLE_THREADS_AVG_BY_INSTANCE=$(prom_query_by_instance \
+        "avg_over_time((clamp_min(sum by (instance) (tomcat_threads_config_max_threads{${PROM_LABELS}}) - sum by (instance) (tomcat_threads_busy_threads{${PROM_LABELS}}), 0))[${window}s:1s])")
 }
 
 verify_database() {
@@ -692,6 +712,7 @@ append_run() {
         "$(format_count "$HIKARI_MAX")" "$vu" "$run" \
         "$(format_tps "$TPS")" \
         "" "" "" \
+        "" "" \
         "$(format_count "$HIKARI_ACTIVE_PEAK")" \
         "$(format_decimal "$AVG_LATENCY")" \
         "$(format_decimal "$P95")" \
@@ -702,6 +723,11 @@ append_run() {
         "$(format_decimal "$LOCK_WAIT_AVG_MS")" \
         "$(format_decimal "$LOCK_WAIT_MAX_MS")" \
         "$LOCK_WAIT_POLL_SECONDS" \
+        "$(format_decimal "$REDIS_LOCK_WAIT_COUNT")" \
+        "$(format_decimal "$REDIS_LOCK_WAIT_TOTAL_MS")" \
+        "$(format_decimal "$REDIS_LOCK_WAIT_AVG_MS")" \
+        "$(format_decimal "$REDIS_LOCK_WAIT_MAX_MS")" \
+        "$(format_decimal "$REDIS_LOCK_TIMEOUT_COUNT")" \
         "$(format_count "$INITIAL_REMAINING")" \
         "$(format_count "$USER_TOTAL_MINED")" \
         "$(format_count "$LOG_TOTAL_MINED")" \
@@ -719,15 +745,22 @@ append_run() {
         --argjson systemCpuByInstance "$SYSTEM_CPU_PEAK_BY_INSTANCE" \
         --argjson processCpuByInstance "$PROCESS_CPU_PEAK_BY_INSTANCE" \
         --argjson heapByInstance "$JVM_HEAP_PEAK_BY_INSTANCE" \
+        --argjson tomcatAvailableThreadsMinByInstance "$TOMCAT_AVAILABLE_THREADS_MIN_BY_INSTANCE" \
+        --argjson tomcatAvailableThreadsAvgByInstance "$TOMCAT_AVAILABLE_THREADS_AVG_BY_INSTANCE" \
         --argjson hikariActive "$HIKARI_ACTIVE_PEAK" \
         --argjson avgLatency "$AVG_LATENCY" \
         --argjson p95 "$P95" \
         --argjson p99 "$P99" \
         --argjson errorRate "$ERROR_RATE" \
-        --argjson lockWaitCount "$LOCK_WAIT_COUNT" \
-        --argjson lockWaitTotalMs "$LOCK_WAIT_TOTAL_MS" \
-        --argjson lockWaitAvgMs "$LOCK_WAIT_AVG_MS" \
-        --argjson lockWaitMaxMs "$LOCK_WAIT_MAX_MS" \
+        --argjson dbLockWaitCount "$LOCK_WAIT_COUNT" \
+        --argjson dbLockWaitTotalMs "$LOCK_WAIT_TOTAL_MS" \
+        --argjson dbLockWaitAvgMs "$LOCK_WAIT_AVG_MS" \
+        --argjson dbLockWaitMaxMs "$LOCK_WAIT_MAX_MS" \
+        --argjson redisLockWaitCount "$REDIS_LOCK_WAIT_COUNT" \
+        --argjson redisLockWaitTotalMs "$REDIS_LOCK_WAIT_TOTAL_MS" \
+        --argjson redisLockWaitAvgMs "$REDIS_LOCK_WAIT_AVG_MS" \
+        --argjson redisLockWaitMaxMs "$REDIS_LOCK_WAIT_MAX_MS" \
+        --argjson redisLockTimeoutCount "$REDIS_LOCK_TIMEOUT_COUNT" \
         --argjson initial "$INITIAL_REMAINING" \
         --argjson userMined "$USER_TOTAL_MINED" \
         --argjson logMined "$LOG_TOTAL_MINED" \
@@ -744,15 +777,22 @@ append_run() {
             systemCpuByInstance: $systemCpuByInstance,
             processCpuByInstance: $processCpuByInstance,
             heapByInstance: $heapByInstance,
+            tomcatAvailableThreadsMinByInstance: $tomcatAvailableThreadsMinByInstance,
+            tomcatAvailableThreadsAvgByInstance: $tomcatAvailableThreadsAvgByInstance,
             hikariActive: $hikariActive,
             avgLatency: $avgLatency,
             p95: $p95,
             p99: $p99,
             errorRate: $errorRate,
-            lockWaitCount: $lockWaitCount,
-            lockWaitTotalMs: $lockWaitTotalMs,
-            lockWaitAvgMs: $lockWaitAvgMs,
-            lockWaitMaxMs: $lockWaitMaxMs,
+            dbLockWaitCount: $dbLockWaitCount,
+            dbLockWaitTotalMs: $dbLockWaitTotalMs,
+            dbLockWaitAvgMs: $dbLockWaitAvgMs,
+            dbLockWaitMaxMs: $dbLockWaitMaxMs,
+            redisLockWaitCount: $redisLockWaitCount,
+            redisLockWaitTotalMs: $redisLockWaitTotalMs,
+            redisLockWaitAvgMs: $redisLockWaitAvgMs,
+            redisLockWaitMaxMs: $redisLockWaitMaxMs,
+            redisLockTimeoutCount: $redisLockTimeoutCount,
             initial: $initial,
             userMined: $userMined,
             logMined: $logMined,
@@ -763,7 +803,9 @@ append_run() {
     append_backend_rows \
         "RUN" "$vu" "$run" "$STARTED_AT" "$FINISHED_AT" \
         "$BACKEND_TPS_BY_INSTANCE" "$SYSTEM_CPU_PEAK_BY_INSTANCE" \
-        "$PROCESS_CPU_PEAK_BY_INSTANCE" "$JVM_HEAP_PEAK_BY_INSTANCE"
+        "$PROCESS_CPU_PEAK_BY_INSTANCE" "$JVM_HEAP_PEAK_BY_INSTANCE" \
+        "$TOMCAT_AVAILABLE_THREADS_MIN_BY_INSTANCE" \
+        "$TOMCAT_AVAILABLE_THREADS_AVG_BY_INSTANCE"
 }
 
 append_warmup() {
@@ -772,6 +814,7 @@ append_warmup() {
         "$(format_count "$HIKARI_MAX")" "$WARMUP_VU" "1" \
         "$(format_tps "$TPS")" \
         "" "" "" \
+        "" "" \
         "$(format_count "$HIKARI_ACTIVE_PEAK")" \
         "$(format_decimal "$AVG_LATENCY")" \
         "$(format_decimal "$P95")" \
@@ -782,6 +825,11 @@ append_warmup() {
         "$(format_decimal "$LOCK_WAIT_AVG_MS")" \
         "$(format_decimal "$LOCK_WAIT_MAX_MS")" \
         "$LOCK_WAIT_POLL_SECONDS" \
+        "$(format_decimal "$REDIS_LOCK_WAIT_COUNT")" \
+        "$(format_decimal "$REDIS_LOCK_WAIT_TOTAL_MS")" \
+        "$(format_decimal "$REDIS_LOCK_WAIT_AVG_MS")" \
+        "$(format_decimal "$REDIS_LOCK_WAIT_MAX_MS")" \
+        "$(format_decimal "$REDIS_LOCK_TIMEOUT_COUNT")" \
         "$(format_count "$INITIAL_REMAINING")" \
         "$(format_count "$USER_TOTAL_MINED")" \
         "$(format_count "$LOG_TOTAL_MINED")" \
@@ -791,7 +839,9 @@ append_warmup() {
     append_backend_rows \
         "WARMUP" "$WARMUP_VU" "1" "$STARTED_AT" "$FINISHED_AT" \
         "$BACKEND_TPS_BY_INSTANCE" "$SYSTEM_CPU_PEAK_BY_INSTANCE" \
-        "$PROCESS_CPU_PEAK_BY_INSTANCE" "$JVM_HEAP_PEAK_BY_INSTANCE"
+        "$PROCESS_CPU_PEAK_BY_INSTANCE" "$JVM_HEAP_PEAK_BY_INSTANCE" \
+        "$TOMCAT_AVAILABLE_THREADS_MIN_BY_INSTANCE" \
+        "$TOMCAT_AVAILABLE_THREADS_AVG_BY_INSTANCE"
 
     echo "웜업 결과를 CSV에 기록했습니다."
     annotate_grafana "warmup" "$WARMUP_VU" "1"
@@ -807,11 +857,15 @@ append_backend_rows() {
     local system_cpu_by_instance=$7
     local process_cpu_by_instance=$8
     local heap_by_instance=$9
+    local tomcat_available_threads_min_by_instance=${10}
+    local tomcat_available_threads_avg_by_instance=${11}
     local instance
     local instance_tps
     local instance_system_cpu
     local instance_process_cpu
     local instance_heap
+    local instance_tomcat_available_threads_min
+    local instance_tomcat_available_threads_avg
 
     while IFS= read -r instance; do
         instance_tps=$(jq -er --arg instance "$instance" '.[$instance]' \
@@ -822,6 +876,12 @@ append_backend_rows() {
             <<< "$process_cpu_by_instance")
         instance_heap=$(jq -er --arg instance "$instance" '.[$instance]' \
             <<< "$heap_by_instance")
+        instance_tomcat_available_threads_min=$(jq -er \
+            --arg instance "$instance" '.[$instance]' \
+            <<< "$tomcat_available_threads_min_by_instance")
+        instance_tomcat_available_threads_avg=$(jq -er \
+            --arg instance "$instance" '.[$instance]' \
+            <<< "$tomcat_available_threads_avg_by_instance")
 
         csv_row \
             "$record_type" "BACKEND" "$instance" "$VERSION" "" "$vu" "$run" \
@@ -829,7 +889,9 @@ append_backend_rows() {
             "$(format_decimal "$instance_system_cpu")" \
             "$(format_decimal "$instance_process_cpu")" \
             "$(format_decimal "$instance_heap")" \
-            "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" \
+            "$(format_count "$instance_tomcat_available_threads_min")" \
+            "$(format_decimal "$instance_tomcat_available_threads_avg")" \
+            "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" \
             "$started_at" "$finished_at" >> "$OUTPUT_FILE"
     done < <(jq -r 'keys[]' <<< "$tps_by_instance")
 }
@@ -859,15 +921,24 @@ append_average() {
             systemCpuByInstance: mean_by_instance("systemCpuByInstance"),
             processCpuByInstance: mean_by_instance("processCpuByInstance"),
             heapByInstance: mean_by_instance("heapByInstance"),
+            tomcatAvailableThreadsMinByInstance:
+                mean_by_instance("tomcatAvailableThreadsMinByInstance"),
+            tomcatAvailableThreadsAvgByInstance:
+                mean_by_instance("tomcatAvailableThreadsAvgByInstance"),
             hikariActive: mean("hikariActive"),
             avgLatency: mean("avgLatency"),
             p95: mean("p95"),
             p99: mean("p99"),
             errorRate: mean("errorRate"),
-            lockWaitCount: mean("lockWaitCount"),
-            lockWaitTotalMs: mean("lockWaitTotalMs"),
-            lockWaitAvgMs: mean("lockWaitAvgMs"),
-            lockWaitMaxMs: mean("lockWaitMaxMs"),
+            dbLockWaitCount: mean("dbLockWaitCount"),
+            dbLockWaitTotalMs: mean("dbLockWaitTotalMs"),
+            dbLockWaitAvgMs: mean("dbLockWaitAvgMs"),
+            dbLockWaitMaxMs: mean("dbLockWaitMaxMs"),
+            redisLockWaitCount: mean("redisLockWaitCount"),
+            redisLockWaitTotalMs: mean("redisLockWaitTotalMs"),
+            redisLockWaitAvgMs: mean("redisLockWaitAvgMs"),
+            redisLockWaitMaxMs: mean("redisLockWaitMaxMs"),
+            redisLockTimeoutCount: mean("redisLockTimeoutCount"),
             initial: mean("initial"),
             userMined: mean("userMined"),
             logMined: mean("logMined"),
@@ -881,16 +952,22 @@ append_average() {
         "$(format_count "$(jq -r '.hikariMax' <<< "$average")")" "$vu" \
         "AVERAGE" "$(format_tps "$(jq -r '.tps' <<< "$average")")" \
         "" "" "" \
+        "" "" \
         "$(format_count "$(jq -r '.hikariActive' <<< "$average")")" \
         "$(format_decimal "$(jq -r '.avgLatency' <<< "$average")")" \
         "$(format_decimal "$(jq -r '.p95' <<< "$average")")" \
         "$(format_decimal "$(jq -r '.p99' <<< "$average")")" \
         "$(format_decimal "$(jq -r '.errorRate' <<< "$average")")" \
-        "$(format_decimal "$(jq -r '.lockWaitCount' <<< "$average")")" \
-        "$(format_decimal "$(jq -r '.lockWaitTotalMs' <<< "$average")")" \
-        "$(format_decimal "$(jq -r '.lockWaitAvgMs' <<< "$average")")" \
-        "$(format_decimal "$(jq -r '.lockWaitMaxMs' <<< "$average")")" \
+        "$(format_decimal "$(jq -r '.dbLockWaitCount' <<< "$average")")" \
+        "$(format_decimal "$(jq -r '.dbLockWaitTotalMs' <<< "$average")")" \
+        "$(format_decimal "$(jq -r '.dbLockWaitAvgMs' <<< "$average")")" \
+        "$(format_decimal "$(jq -r '.dbLockWaitMaxMs' <<< "$average")")" \
         "$LOCK_WAIT_POLL_SECONDS" \
+        "$(format_decimal "$(jq -r '.redisLockWaitCount' <<< "$average")")" \
+        "$(format_decimal "$(jq -r '.redisLockWaitTotalMs' <<< "$average")")" \
+        "$(format_decimal "$(jq -r '.redisLockWaitAvgMs' <<< "$average")")" \
+        "$(format_decimal "$(jq -r '.redisLockWaitMaxMs' <<< "$average")")" \
+        "$(format_decimal "$(jq -r '.redisLockTimeoutCount' <<< "$average")")" \
         "$(format_count "$(jq -r '.initial' <<< "$average")")" \
         "$(format_count "$(jq -r '.userMined' <<< "$average")")" \
         "$(format_count "$(jq -r '.logMined' <<< "$average")")" \
@@ -902,7 +979,9 @@ append_average() {
         "$(jq -c '.backendTpsByInstance' <<< "$average")" \
         "$(jq -c '.systemCpuByInstance' <<< "$average")" \
         "$(jq -c '.processCpuByInstance' <<< "$average")" \
-        "$(jq -c '.heapByInstance' <<< "$average")"
+        "$(jq -c '.heapByInstance' <<< "$average")" \
+        "$(jq -c '.tomcatAvailableThreadsMinByInstance' <<< "$average")" \
+        "$(jq -c '.tomcatAvailableThreadsAvgByInstance' <<< "$average")"
 
     echo "VU=$vu 산술평균 행을 기록했습니다."
 }
