@@ -23,6 +23,8 @@ public class MineController {
     private final MineService mineService;
     private final DistributedMiningService distributedMiningService;
 
+    private final Long TARGET_MINE_ID = 1L;
+
     @PostMapping("/mines")
     public ApiResponse<MineDto> createMine(
             @RequestParam(name = "amount") Long amount
@@ -39,8 +41,7 @@ public class MineController {
     public ApiResponse<MineRequestDto> mine(
             @RequestParam(name = "sessionId") UUID sessionId
             ) {
-//        mineService.mine(sessionId, 1L);
-        distributedMiningService.mine(sessionId, 1L);
+        distributedMiningService.mine(sessionId, TARGET_MINE_ID, 1L);
         UserEntity foundUser = userService.findBySessionId(sessionId);
 
         Long totalMinedGold = foundUser.getTotalMinedGold();
