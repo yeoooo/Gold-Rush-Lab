@@ -22,11 +22,12 @@ Gold Rush Lab은 **여러 사용자가 하나의 자원을 동시에 수정하�
 
 ## 현재 진행 상황
 
-**현재 버전: `v0.4` — Distributed Lock**
+**현재 버전: `v0.5` — Event Driven**
 - 전체 결과 표 : [스프레드 시트](https://docs.google.com/spreadsheets/d/1KEnCXDi56xy9ztNQ00YJJ60xO8q4opV7UBKE_EvPc1w/edit?gid=347977445#gid=347977445)
 - v0.1 결과 : [[Project : Gold-Rush-Lab] 1. 모놀리식에서의 동시성과 부하](https://yeoooo.github.io/project/gold-rush-lab-monolith-concurrency-load/)
 - v0.2 결과 : [[Project : Gold-Rush-Lab] 2. 동시성 문제에서의 락](https://yeoooo.github.io/project/gold-rush-lab-database-lock/)
 - v0.3 결과 : [[Project : Gold-Rush-Lab] 3. 분산 시스템에서의 Lock](https://yeoooo.github.io/project/gold-rush-lab-distributed-lock/)
+- v0.4 결과 : [[Project : Gold-Rush-Lab] 4. 분산 시스템과 분산 락](https://https://yeoooo.github.io/project/gold-rush-lab-redis-distributed-lock/)
 ### 실험 결과
 
 아래 결과는 각 실험을 5회 실행한 평균값입니다.
@@ -90,109 +91,80 @@ Gold Rush Lab은 **여러 사용자가 하나의 자원을 동시에 수정하�
 | v0.2_pessimistic-lock | 50 | 300 | AVERAGE | 468.917 req/s | 47.186 | 22.583 | 15.399 | 50 | 627.296 | 1037.141 | 1281.682 | 0.000 | 30000 | 30000 | 30000 | 0 | ✅ |  |  |
 | v0.2_pessimistic-lock | 50 | 500 | AVERAGE | 465.750 req/s | 47.316 | 24.160 | 17.797 | 50 | 1058.071 | 1470.929 | 1712.593 | 0.000 | 50000 | 50000 | 50000 | 0 | ✅ |  |  |
 
+</details>  
+<details>
+<summary><strong>v0.3</strong></summary>   
+
+| Record Type | Target Type | Target | Version | Hikari Max Pool Size | VU | Run | TPS (req/s) | System CPU Peak (%) | Process CPU Peak (%) | JVM Heap Peak (%) | Hikari Active Peak | Avg Latency (ms) | P95 (ms) | P99 (ms) | Error Rate (%) | Observed Lock Waits | Observed Lock Wait Total (ms) | Observed Lock Wait Avg (ms) | Observed Lock Wait Max (ms) | 초기 잔량 | 사용자 총 채굴량 | Mining Log 총 채굴량 | 실제 잔량 | 정합성 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| AVERAGE | LOAD_BALANCER | http://192.168.0.47/api | v0.3_atomic-update | 20 | 10 | AVERAGE | 345.606 req/s |  |  |  | 4.2 | 28.313 | 72.86 | 114.317 | 0 | 18.4 | 36.736 | 1.868 | 2.554 | 1000 | 1000 | 1000 | 0 | ✅ |
+| AVERAGE | BACKEND | 192.168.0.41:8080 | v0.3_atomic-update |  | 10 | AVERAGE | 190.759 req/s | 36.401 | 33.468 | 12.273 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| AVERAGE | BACKEND | 192.168.0.46:8080 | v0.3_atomic-update |  | 10 | AVERAGE | 190.759 req/s | 31.618 | 27.815 | 11.599 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| AVERAGE | LOAD_BALANCER | http://192.168.0.47/api | v0.3_atomic-update | 20 | 50 | AVERAGE | 490.198 req/s |  |  |  | 20 | 98.382 | 197.951 | 261.369 | 0 | 143.6 | 163.11 | 1.133 | 2.125 | 5000 | 5000 | 5000 | 0 | ✅ |
+| AVERAGE | BACKEND | 192.168.0.41:8080 | v0.3_atomic-update |  | 50 | AVERAGE | 259.370 req/s | 31.065 | 21.199 | 11.906 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| AVERAGE | BACKEND | 192.168.0.46:8080 | v0.3_atomic-update |  | 50 | AVERAGE | 259.370 req/s | 31.149 | 20.52 | 12.603 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| AVERAGE | LOAD_BALANCER | http://192.168.0.47/api | v0.3_atomic-update | 20 | 100 | AVERAGE | 506.089 req/s |  |  |  | 20 | 191.651 | 337.027 | 404.958 | 0 | 319.2 | 320.824 | 1.007 | 3.256 | 10000 | 10000 | 10000 | 0 | ✅ |
+| AVERAGE | BACKEND | 192.168.0.41:8080 | v0.3_atomic-update |  | 100 | AVERAGE | 262.416 req/s | 22.72 | 11.156 | 14.816 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| AVERAGE | BACKEND | 192.168.0.46:8080 | v0.3_atomic-update |  | 100 | AVERAGE | 262.416 req/s | 23.82 | 11.399 | 14.821 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| AVERAGE | LOAD_BALANCER | http://192.168.0.47/api | v0.3_atomic-update | 20 | 300 | AVERAGE | 504.521 req/s |  |  |  | 20 | 574.167 | 1070.983 | 1657.26 | 0 | 867.2 | 927.442 | 1.069 | 3.184 | 30000 | 30000 | 30000 | 0 | ✅ |
+| AVERAGE | BACKEND | 192.168.0.41:8080 | v0.3_atomic-update |  | 300 | AVERAGE | 255.981 req/s | 23.657 | 11.976 | 23.681 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| AVERAGE | BACKEND | 192.168.0.46:8080 | v0.3_atomic-update |  | 300 | AVERAGE | 255.981 req/s | 24.306 | 12.789 | 23.617 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| AVERAGE | LOAD_BALANCER | http://192.168.0.47/api | v0.3_atomic-update | 20 | 500 | AVERAGE | 502.994 req/s |  |  |  | 20 | 964.483 | 1844.406 | 2143.559 | 0 | 1511.6 | 1854.252 | 1.233 | 17.407 | 50000 | 50000 | 50000 | 0 | ✅ |
+| AVERAGE | BACKEND | 192.168.0.41:8080 | v0.3_atomic-update |  | 500 | AVERAGE | 253.809 req/s | 23.703 | 12.161 | 28.8 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| AVERAGE | BACKEND | 192.168.0.46:8080 | v0.3_atomic-update |  | 500 | AVERAGE | 253.809 req/s | 24.76 | 12.946 | 28.252 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| AVERAGE | LOAD_BALANCER | http://192.168.0.47/api | v0.3_optimistic-lock | 20 | 10 | AVERAGE | 272.042 req/s |  |  |  | 5.4 | 31.788 | 114.661 | 455.75 | 0.02 | 0.6 | 0.26 | 0.26 | 0.26 | 1000 | 999.8 | 999.8 | 0.2 | ✅ |
+| AVERAGE | BACKEND | 192.168.0.41:8080 | v0.3_optimistic-lock |  | 10 | AVERAGE | 148.990 req/s | 35.639 | 30.24 | 12.453 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| AVERAGE | BACKEND | 192.168.0.46:8080 | v0.3_optimistic-lock |  | 10 | AVERAGE | 149.035 req/s | 46.405 | 40.06 | 11.935 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| AVERAGE | LOAD_BALANCER | http://192.168.0.47/api | v0.3_optimistic-lock | 20 | 50 | AVERAGE | 372.790 req/s |  |  |  | 20 | 124.362 | 320.256 | 842.048 | 0.1 | 5.6 | 3.614 | 0.691 | 1.19 | 5000 | 4995 | 4995 | 5 | ✅ |
+| AVERAGE | BACKEND | 192.168.0.41:8080 | v0.3_optimistic-lock |  | 50 | AVERAGE | 195.464 req/s | 38.526 | 22.834 | 13.77 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| AVERAGE | BACKEND | 192.168.0.46:8080 | v0.3_optimistic-lock |  | 50 | AVERAGE | 195.449 req/s | 38.991 | 23.927 | 15.07 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| AVERAGE | LOAD_BALANCER | http://192.168.0.47/api | v0.3_optimistic-lock | 20 | 100 | AVERAGE | 383.653 req/s |  |  |  | 20 | 247.753 | 511.831 | 1030.145 | 0.104 | 10.2 | 5.2 | 0.514 | 0.91 | 10000 | 9989.6 | 9989.6 | 10.4 | ✅ |
+| AVERAGE | BACKEND | 192.168.0.41:8080 | v0.3_optimistic-lock |  | 100 | AVERAGE | 197.605 req/s | 35.245 | 18.492 | 17.057 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| AVERAGE | BACKEND | 192.168.0.46:8080 | v0.3_optimistic-lock |  | 100 | AVERAGE | 197.605 req/s | 36.123 | 20.651 | 18.606 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| AVERAGE | LOAD_BALANCER | http://192.168.0.47/api | v0.3_optimistic-lock | 20 | 300 | AVERAGE | 386.009 req/s |  |  |  | 20 | 743.866 | 1883.916 | 2388.514 | 0.139 | 23.6 | 16.325 | 0.687 | 2.36 | 30000 | 29958.4 | 29958.4 | 41.6 | ✅ |
+| AVERAGE | BACKEND | 192.168.0.41:8080 | v0.3_optimistic-lock |  | 300 | AVERAGE | 195.259 req/s | 37.991 | 20.629 | 30.967 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| AVERAGE | BACKEND | 192.168.0.46:8080 | v0.3_optimistic-lock |  | 300 | AVERAGE | 195.259 req/s | 37.71 | 21.226 | 30.662 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| AVERAGE | LOAD_BALANCER | http://192.168.0.47/api | v0.3_optimistic-lock | 20 | 500 | AVERAGE | 385.291 req/s |  |  |  | 20 | 1236.794 | 3022.376 | 3505.934 | 0.128 | 48.2 | 47.912 | 0.965 | 8.989 | 50000 | 49935.8 | 49935.8 | 64.2 | ✅ |
+| AVERAGE | BACKEND | 192.168.0.41:8080 | v0.3_optimistic-lock |  | 500 | AVERAGE | 194.041 req/s | 38.38 | 21.507 | 32.169 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| AVERAGE | BACKEND | 192.168.0.46:8080 | v0.3_optimistic-lock |  | 500 | AVERAGE | 194.041 req/s | 38.339 | 20.931 | 32.158 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| AVERAGE | LOAD_BALANCER | http://192.168.0.47/api | v0.3_pessimistic-lock | 20 | 10 | AVERAGE | 383.697 req/s |  |  |  | 5.6 | 25.852 | 42.367 | 49.695 | 0 | 16.2 | 26.947 | 1.671 | 2.57 | 1000 | 1000 | 1000 | 0 | ✅ |
+| AVERAGE | BACKEND | 192.168.0.41:8080 | v0.3_pessimistic-lock |  | 10 | AVERAGE | 211.979 req/s | 29.998 | 24.931 | 12.057 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| AVERAGE | BACKEND | 192.168.0.46:8080 | v0.3_pessimistic-lock |  | 10 | AVERAGE | 211.979 req/s | 25.019 | 21.8 | 12.533 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| AVERAGE | LOAD_BALANCER | http://192.168.0.47/api | v0.3_pessimistic-lock | 20 | 50 | AVERAGE | 531.818 req/s |  |  |  | 20 | 90.6 | 184.618 | 229.063 | 0 | 156.6 | 223.071 | 1.43 | 2.865 | 5000 | 5000 | 5000 | 0 | ✅ |
+| AVERAGE | BACKEND | 192.168.0.41:8080 | v0.3_pessimistic-lock |  | 50 | AVERAGE | 281.797 req/s | 34.754 | 25.669 | 13.109 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| AVERAGE | BACKEND | 192.168.0.46:8080 | v0.3_pessimistic-lock |  | 50 | AVERAGE | 281.797 req/s | 33.353 | 23.579 | 12.625 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| AVERAGE | LOAD_BALANCER | http://192.168.0.47/api | v0.3_pessimistic-lock | 20 | 100 | AVERAGE | 556.922 req/s |  |  |  | 20 | 173.02 | 343.742 | 405.055 | 0 | 316 | 408.938 | 1.294 | 2.752 | 10000 | 10000 | 10000 | 0 | ✅ |
+| AVERAGE | BACKEND | 192.168.0.41:8080 | v0.3_pessimistic-lock |  | 100 | AVERAGE | 289.513 req/s | 23.241 | 11.126 | 16.627 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| AVERAGE | BACKEND | 192.168.0.46:8080 | v0.3_pessimistic-lock |  | 100 | AVERAGE | 289.513 req/s | 22.717 | 11.081 | 15.707 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| AVERAGE | LOAD_BALANCER | http://192.168.0.47/api | v0.3_pessimistic-lock | 20 | 300 | AVERAGE | 552.789 req/s |  |  |  | 20 | 520.033 | 1057.115 | 1640.65 | 0 | 946.8 | 1346.265 | 1.422 | 4.964 | 30000 | 30000 | 30000 | 0 | ✅ |
+| AVERAGE | BACKEND | 192.168.0.41:8080 | v0.3_pessimistic-lock |  | 300 | AVERAGE | 280.838 req/s | 25.054 | 14.14 | 24.966 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| AVERAGE | BACKEND | 192.168.0.46:8080 | v0.3_pessimistic-lock |  | 300 | AVERAGE | 280.838 req/s | 23.95 | 12.704 | 23.773 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| AVERAGE | LOAD_BALANCER | http://192.168.0.47/api | v0.3_pessimistic-lock | 20 | 500 | AVERAGE | 554.501 req/s |  |  |  | 20 | 860.936 | 1840.621 | 2409.877 | 0 | 1572.6 | 2261.04 | 1.438 | 5.759 | 50000 | 50000 | 50000 | 0 | ✅ |
+| AVERAGE | BACKEND | 192.168.0.41:8080 | v0.3_pessimistic-lock |  | 500 | AVERAGE | 280.051 req/s | 23.246 | 11.491 | 28.545 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| AVERAGE | BACKEND | 192.168.0.46:8080 | v0.3_pessimistic-lock |  | 500 | AVERAGE | 280.051 req/s | 23.681 | 12.294 | 28.88 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+
 </details>
 
 <details>
-<summary><strong>v0.3</strong></summary>
+<summary><strong>v0.4</strong></summary>  
 
-| Target Type | Target | Version | Hikari Max Pool Size | VU | Run | TPS (req/s) | System CPU Peak (%) | Process CPU Peak (%) | JVM Heap Peak (%) | Hikari Active Peak | Avg Latency (ms) | P95 (ms) | P99 (ms) | Error Rate (%) | 초기 잔량 | 사용자 총 채굴량 | Mining Log 총 채굴량 | 실제 잔량 | 정합성 | Started At | Finished At |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| LOAD_BALANCER | http://192.168.0.47/api | v0.3_optimistic-lock-ps10 | 20 | 10 | AVERAGE | 1799.211 req/s |  |  |  | 0 | 5.267 | 7.783 | 11.045 | 83.920 | 1000 | 160.800 | 160.800 | 839.200 | ✅ |  |  |
-| BACKEND | 192.168.0.41:8080 | v0.3_optimistic-lock-ps10 |  | 10 | AVERAGE | 174.638 req/s | 2.177 | 1.096 | 18.043 |  |  |  |  |  |  |  |  |  |  |  |  |
-| BACKEND | 192.168.0.46:8080 | v0.3_optimistic-lock-ps10 |  | 10 | AVERAGE | 221.131 req/s | 13.179 | 7.661 | 18.545 |  |  |  |  |  |  |  |  |  |  |  |  |
-| LOAD_BALANCER | http://192.168.0.47/api | v0.3_optimistic-lock-ps10 | 20 | 50 | AVERAGE | 1921.046 req/s |  |  |  | 15.800 | 24.814 | 53.275 | 72.281 | 90.616 | 5000 | 469.200 | 469.200 | 4530.800 | ✅ |  |  |
-| BACKEND | 192.168.0.41:8080 | v0.3_optimistic-lock-ps10 |  | 50 | AVERAGE | 1015.406 req/s | 49.197 | 28.930 | 17.350 |  |  |  |  |  |  |  |  |  |  |  |  |
-| BACKEND | 192.168.0.46:8080 | v0.3_optimistic-lock-ps10 |  | 50 | AVERAGE | 916.578 req/s | 69.547 | 43.482 | 19.654 |  |  |  |  |  |  |  |  |  |  |  |  |
-| LOAD_BALANCER | http://192.168.0.47/api | v0.3_optimistic-lock-ps10 | 20 | 100 | AVERAGE | 1856.950 req/s |  |  |  | 19.200 | 51.528 | 112.818 | 163.637 | 91.024 | 10000 | 897.600 | 897.600 | 9102.400 | ✅ |  |  |
-| BACKEND | 192.168.0.41:8080 | v0.3_optimistic-lock-ps10 |  | 100 | AVERAGE | 986.397 req/s | 68.954 | 40.497 | 18.101 |  |  |  |  |  |  |  |  |  |  |  |  |
-| BACKEND | 192.168.0.46:8080 | v0.3_optimistic-lock-ps10 |  | 100 | AVERAGE | 965.779 req/s | 79.410 | 49.769 | 20.150 |  |  |  |  |  |  |  |  |  |  |  |  |
-| LOAD_BALANCER | http://192.168.0.47/api | v0.3_optimistic-lock-ps10 | 20 | 300 | AVERAGE | 1741.941 req/s |  |  |  | 20 | 164.207 | 427.949 | 562.757 | 91.600 | 30000 | 2520 | 2520 | 27480 | ✅ |  |  |
-| BACKEND | 192.168.0.41:8080 | v0.3_optimistic-lock-ps10 |  | 300 | AVERAGE | 896.803 req/s | 72.213 | 43.019 | 23.796 |  |  |  |  |  |  |  |  |  |  |  |  |
-| BACKEND | 192.168.0.46:8080 | v0.3_optimistic-lock-ps10 |  | 300 | AVERAGE | 908.279 req/s | 79.240 | 50.194 | 23.284 |  |  |  |  |  |  |  |  |  |  |  |  |
-| LOAD_BALANCER | http://192.168.0.47/api | v0.3_optimistic-lock-ps10 | 20 | 500 | AVERAGE | 1721.537 req/s |  |  |  | 20 | 277.923 | 671.125 | 860.101 | 91.575 | 50000 | 4212.400 | 4212.400 | 45787.600 | ✅ |  |  |
-| BACKEND | 192.168.0.41:8080 | v0.3_optimistic-lock-ps10 |  | 500 | AVERAGE | 884.448 req/s | 72.947 | 43.250 | 26.581 |  |  |  |  |  |  |  |  |  |  |  |  |
-| BACKEND | 192.168.0.46:8080 | v0.3_optimistic-lock-ps10 |  | 500 | AVERAGE | 884.448 req/s | 76.330 | 47.036 | 25.257 |  |  |  |  |  |  |  |  |  |  |  |  |
-| LOAD_BALANCER | http://192.168.0.47/api | v0.3_optimistic-lock-ps30 | 60 | 10 | AVERAGE | 747.757 req/s |  |  |  | 4.400 | 13.523 | 21.798 | 26.583 | 82.020 | 1000 | 179.800 | 179.800 | 820.200 | ✅ |  |  |
-| BACKEND | 192.168.0.41:8080 | v0.3_optimistic-lock-ps30 |  | 10 | AVERAGE | 362.163 req/s | 39.221 | 36.526 | 10.257 |  |  |  |  |  |  |  |  |  |  |  |  |
-| BACKEND | 192.168.0.46:8080 | v0.3_optimistic-lock-ps30 |  | 10 | AVERAGE | 350.223 req/s | 41.256 | 37.914 | 11.260 |  |  |  |  |  |  |  |  |  |  |  |  |
-| LOAD_BALANCER | http://192.168.0.47/api | v0.3_optimistic-lock-ps30 | 60 | 50 | AVERAGE | 1398.874 req/s |  |  |  | 30.600 | 34.191 | 90.929 | 127.042 | 89.724 | 5000 | 513.800 | 513.800 | 4486.200 | ✅ |  |  |
-| BACKEND | 192.168.0.41:8080 | v0.3_optimistic-lock-ps30 |  | 50 | AVERAGE | 723.849 req/s | 58.700 | 46.214 | 12.308 |  |  |  |  |  |  |  |  |  |  |  |  |
-| BACKEND | 192.168.0.46:8080 | v0.3_optimistic-lock-ps30 |  | 50 | AVERAGE | 718.939 req/s | 76.433 | 64.471 | 12.538 |  |  |  |  |  |  |  |  |  |  |  |  |
-| LOAD_BALANCER | http://192.168.0.47/api | v0.3_optimistic-lock-ps30 | 60 | 100 | AVERAGE | 1480.528 req/s |  |  |  | 60 | 63.700 | 156.698 | 293.412 | 94.840 | 10000 | 516 | 516 | 9484 | ✅ |  |  |
-| BACKEND | 192.168.0.41:8080 | v0.3_optimistic-lock-ps30 |  | 100 | AVERAGE | 766.163 req/s | 68.057 | 42.094 | 13.041 |  |  |  |  |  |  |  |  |  |  |  |  |
-| BACKEND | 192.168.0.46:8080 | v0.3_optimistic-lock-ps30 |  | 100 | AVERAGE | 765.078 req/s | 70.734 | 45.321 | 14.036 |  |  |  |  |  |  |  |  |  |  |  |  |
-| LOAD_BALANCER | http://192.168.0.47/api | v0.3_optimistic-lock-ps30 | 60 | 300 | AVERAGE | 1394.036 req/s |  |  |  | 60 | 205.539 | 524.355 | 724.227 | 95.327 | 30000 | 1402 | 1402 | 28598 | ✅ |  |  |
-| BACKEND | 192.168.0.41:8080 | v0.3_optimistic-lock-ps30 |  | 300 | AVERAGE | 721.861 req/s | 65.015 | 38.801 | 23.698 |  |  |  |  |  |  |  |  |  |  |  |  |
-| BACKEND | 192.168.0.46:8080 | v0.3_optimistic-lock-ps30 |  | 300 | AVERAGE | 721.961 req/s | 72.988 | 47.385 | 23.261 |  |  |  |  |  |  |  |  |  |  |  |  |
-| LOAD_BALANCER | http://192.168.0.47/api | v0.3_optimistic-lock-ps30 | 60 | 500 | AVERAGE | 1294.716 req/s |  |  |  | 60 | 370.134 | 830.996 | 1077.349 | 95.484 | 50000 | 2258.200 | 2258.200 | 47741.800 | ✅ |  |  |
-| BACKEND | 192.168.0.41:8080 | v0.3_optimistic-lock-ps30 |  | 500 | AVERAGE | 661.522 req/s | 63.145 | 37.005 | 26.888 |  |  |  |  |  |  |  |  |  |  |  |  |
-| BACKEND | 192.168.0.46:8080 | v0.3_optimistic-lock-ps30 |  | 500 | AVERAGE | 661.522 req/s | 66.980 | 40.282 | 26.461 |  |  |  |  |  |  |  |  |  |  |  |  |
-| LOAD_BALANCER | http://192.168.0.47/api | v0.3_optimistic-lock-ps50 | 100 | 10 | AVERAGE | 769.859 req/s |  |  |  | 1.600 | 13.110 | 20.007 | 24.176 | 82.820 | 1000 | 171.800 | 171.800 | 828.200 | ✅ |  |  |
-| BACKEND | 192.168.0.41:8080 | v0.3_optimistic-lock-ps50 |  | 10 | AVERAGE | 251.085 req/s | 21.024 | 18.801 | 11.209 |  |  |  |  |  |  |  |  |  |  |  |  |
-| BACKEND | 192.168.0.46:8080 | v0.3_optimistic-lock-ps50 |  | 10 | AVERAGE | 119.685 req/s | 21.147 | 18.458 | 11.980 |  |  |  |  |  |  |  |  |  |  |  |  |
-| LOAD_BALANCER | http://192.168.0.47/api | v0.3_optimistic-lock-ps50 | 100 | 50 | AVERAGE | 1320.466 req/s |  |  |  | 40.200 | 35.683 | 105.170 | 159.683 | 91.596 | 5000 | 420.200 | 420.200 | 4579.800 | ✅ |  |  |
-| BACKEND | 192.168.0.41:8080 | v0.3_optimistic-lock-ps50 |  | 50 | AVERAGE | 672.302 req/s | 61.092 | 48.379 | 12.210 |  |  |  |  |  |  |  |  |  |  |  |  |
-| BACKEND | 192.168.0.46:8080 | v0.3_optimistic-lock-ps50 |  | 50 | AVERAGE | 635.454 req/s | 73.735 | 61.405 | 13.749 |  |  |  |  |  |  |  |  |  |  |  |  |
-| LOAD_BALANCER | http://192.168.0.47/api | v0.3_optimistic-lock-ps50 | 100 | 100 | AVERAGE | 1476.870 req/s |  |  |  | 97.200 | 62.582 | 168.328 | 355.128 | 95.872 | 10000 | 412.800 | 412.800 | 9587.200 | ✅ |  |  |
-| BACKEND | 192.168.0.41:8080 | v0.3_optimistic-lock-ps50 |  | 100 | AVERAGE | 761.210 req/s | 65.312 | 38.155 | 12.775 |  |  |  |  |  |  |  |  |  |  |  |  |
-| BACKEND | 192.168.0.46:8080 | v0.3_optimistic-lock-ps50 |  | 100 | AVERAGE | 777.957 req/s | 72.358 | 47.393 | 16.147 |  |  |  |  |  |  |  |  |  |  |  |  |
-| LOAD_BALANCER | http://192.168.0.47/api | v0.3_optimistic-lock-ps50 | 100 | 300 | AVERAGE | 1262.679 req/s |  |  |  | 100 | 227.992 | 608.053 | 944.064 | 95.993 | 30000 | 1202.200 | 1202.200 | 28797.800 | ✅ |  |  |
-| BACKEND | 192.168.0.41:8080 | v0.3_optimistic-lock-ps50 |  | 300 | AVERAGE | 652.214 req/s | 63.839 | 37.473 | 23.494 |  |  |  |  |  |  |  |  |  |  |  |  |
-| BACKEND | 192.168.0.46:8080 | v0.3_optimistic-lock-ps50 |  | 300 | AVERAGE | 651.110 req/s | 65.608 | 40.624 | 25.069 |  |  |  |  |  |  |  |  |  |  |  |  |
-| LOAD_BALANCER | http://192.168.0.47/api | v0.3_optimistic-lock-ps50 | 100 | 500 | AVERAGE | 964.884 req/s |  |  |  | 100 | 531.091 | 1297.146 | 1775.135 | 96.015 | 50000 | 1992.400 | 1992.400 | 48007.600 | ✅ |  |  |
-| BACKEND | 192.168.0.41:8080 | v0.3_optimistic-lock-ps50 |  | 500 | AVERAGE | 491.069 req/s | 62.247 | 35.548 | 28.371 |  |  |  |  |  |  |  |  |  |  |  |  |
-| BACKEND | 192.168.0.46:8080 | v0.3_optimistic-lock-ps50 |  | 500 | AVERAGE | 491.069 req/s | 66.251 | 40.890 | 28.406 |  |  |  |  |  |  |  |  |  |  |  |  |
-| LOAD_BALANCER | http://192.168.0.47/api | v0.3_pessimistic-lock-ps10 | 20 | 10 | AVERAGE | 318.060 req/s |  |  |  | 7.400 | 31.109 | 54.657 | 72.490 | 0.000 | 1000 | 1000 | 1000 | 0 | ✅ |  |  |
-| BACKEND | 192.168.0.41:8080 | v0.3_pessimistic-lock-ps10 |  | 10 | AVERAGE | 157.046 req/s | 40.926 | 32.254 | 12.243 |  |  |  |  |  |  |  |  |  |  |  |  |
-| BACKEND | 192.168.0.46:8080 | v0.3_pessimistic-lock-ps10 |  | 10 | AVERAGE | 148.454 req/s | 44.154 | 36.495 | 11.310 |  |  |  |  |  |  |  |  |  |  |  |  |
-| LOAD_BALANCER | http://192.168.0.47/api | v0.3_pessimistic-lock-ps10 | 20 | 50 | AVERAGE | 485.306 req/s |  |  |  | 18.200 | 98.731 | 202.144 | 256.738 | 0.000 | 5000 | 5000 | 5000 | 0 | ✅ |  |  |
-| BACKEND | 192.168.0.41:8080 | v0.3_pessimistic-lock-ps10 |  | 50 | AVERAGE | 254.774 req/s | 32.467 | 17.316 | 12.829 |  |  |  |  |  |  |  |  |  |  |  |  |
-| BACKEND | 192.168.0.46:8080 | v0.3_pessimistic-lock-ps10 |  | 50 | AVERAGE | 253.964 req/s | 36.708 | 20.751 | 11.317 |  |  |  |  |  |  |  |  |  |  |  |  |
-| LOAD_BALANCER | http://192.168.0.47/api | v0.3_pessimistic-lock-ps10 | 20 | 100 | AVERAGE | 511.007 req/s |  |  |  | 19.800 | 185.511 | 385.803 | 450.694 | 0.000 | 10000 | 10000 | 10000 | 0 | ✅ |  |  |
-| BACKEND | 192.168.0.41:8080 | v0.3_pessimistic-lock-ps10 |  | 100 | AVERAGE | 265.303 req/s | 29.280 | 12.585 | 16.012 |  |  |  |  |  |  |  |  |  |  |  |  |
-| BACKEND | 192.168.0.46:8080 | v0.3_pessimistic-lock-ps10 |  | 100 | AVERAGE | 263.624 req/s | 31.209 | 13.609 | 13.644 |  |  |  |  |  |  |  |  |  |  |  |  |
-| LOAD_BALANCER | http://192.168.0.47/api | v0.3_pessimistic-lock-ps10 | 20 | 300 | AVERAGE | 506.906 req/s |  |  |  | 20 | 558.272 | 1197.953 | 1898.718 | 0.000 | 30000 | 30000 | 30000 | 0 | ✅ |  |  |
-| BACKEND | 192.168.0.41:8080 | v0.3_pessimistic-lock-ps10 |  | 300 | AVERAGE | 256.780 req/s | 33.371 | 16.054 | 25.346 |  |  |  |  |  |  |  |  |  |  |  |  |
-| BACKEND | 192.168.0.46:8080 | v0.3_pessimistic-lock-ps10 |  | 300 | AVERAGE | 257.317 req/s | 32.831 | 14.966 | 21.018 |  |  |  |  |  |  |  |  |  |  |  |  |
-| LOAD_BALANCER | http://192.168.0.47/api | v0.3_pessimistic-lock-ps10 | 20 | 500 | AVERAGE | 507.725 req/s |  |  |  | 20 | 930.839 | 1986.360 | 2685.148 | 0.000 | 50000 | 50000 | 50000 | 0 | ✅ |  |  |
-| BACKEND | 192.168.0.41:8080 | v0.3_pessimistic-lock-ps10 |  | 500 | AVERAGE | 256.267 req/s | 30.439 | 12.945 | 27.459 |  |  |  |  |  |  |  |  |  |  |  |  |
-| BACKEND | 192.168.0.46:8080 | v0.3_pessimistic-lock-ps10 |  | 500 | AVERAGE | 256.267 req/s | 33.351 | 14.933 | 25.746 |  |  |  |  |  |  |  |  |  |  |  |  |
-
-#### v0.3 최종 Scale-out 결과
-
-| Target Type | Target | Version | Hikari Max Pool Size | VU | Run | TPS (req/s) | System CPU Peak (%) | Process CPU Peak (%) | JVM Heap Peak (%) | Hikari Active Peak | Avg Latency (ms) | P95 (ms) | P99 (ms) | Error Rate (%) | 초기 잔량 | 사용자 총 채굴량 | Mining Log 총 채굴량 | 실제 잔량 | 정합성 | Optimistic Retry Count | Started At | Finished At |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| LOAD_BALANCER | http://192.168.0.47/api | v0.3_optimistic-lock | 20 | 10 | AVERAGE | 264.572 req/s |  |  |  | 4.400 | 32.050 | 115.146 | 435.568 | 0.000 | 1000 | 1000 | 1000 | 0 | ✅ | 1363 |  |  |
-| BACKEND | 192.168.0.41:8080 | v0.3_optimistic-lock | 10 | 10 | AVERAGE | 125.386 req/s | 37.393 | 26.938 | 10.162 |  |  |  |  |  |  |  |  |  |  |  |  |  |
-| BACKEND | 192.168.0.46:8080 | v0.3_optimistic-lock | 10 | 10 | AVERAGE | 124.266 req/s | 44.753 | 33.397 | 11.460 |  |  |  |  |  |  |  |  |  |  |  |  |  |
-| LOAD_BALANCER | http://192.168.0.47/api | v0.3_optimistic-lock | 20 | 50 | AVERAGE | 347.883 req/s |  |  |  | 19.200 | 133.117 | 345.316 | 887.712 | 0.144 | 5000 | 4992.800 | 4992.800 | 7.200 | ✅ | 10553.400 |  |  |
-| BACKEND | 192.168.0.41:8080 | v0.3_optimistic-lock | 10 | 50 | AVERAGE | 181.524 req/s | 49.927 | 26.384 | 12.825 |  |  |  |  |  |  |  |  |  |  |  |  |  |
-| BACKEND | 192.168.0.46:8080 | v0.3_optimistic-lock | 10 | 50 | AVERAGE | 178.788 req/s | 50.951 | 26.462 | 13.256 |  |  |  |  |  |  |  |  |  |  |  |  |  |
-| LOAD_BALANCER | http://192.168.0.47/api | v0.3_optimistic-lock | 20 | 100 | AVERAGE | 360.067 req/s |  |  |  | 20 | 263.910 | 536.261 | 1074.603 | 0.144 | 10000 | 9985.600 | 9985.600 | 14.400 | ✅ | 21234.800 |  |  |
-| BACKEND | 192.168.0.41:8080 | v0.3_optimistic-lock | 10 | 100 | AVERAGE | 182.420 req/s | 49.790 | 24.085 | 17.928 |  |  |  |  |  |  |  |  |  |  |  |  |  |
-| BACKEND | 192.168.0.46:8080 | v0.3_optimistic-lock | 10 | 100 | AVERAGE | 182.393 req/s | 51.188 | 24.569 | 18.034 |  |  |  |  |  |  |  |  |  |  |  |  |  |
-| LOAD_BALANCER | http://192.168.0.47/api | v0.3_optimistic-lock | 20 | 300 | AVERAGE | 360.716 req/s |  |  |  | 20 | 794.664 | 2010.488 | 2629.693 | 0.173 | 30000 | 29948 | 29948 | 52 | ✅ | 63644 |  |  |
-| BACKEND | 192.168.0.41:8080 | v0.3_optimistic-lock | 10 | 300 | AVERAGE | 182.095 req/s | 52.728 | 25.593 | 29.021 |  |  |  |  |  |  |  |  |  |  |  |  |  |
-| BACKEND | 192.168.0.46:8080 | v0.3_optimistic-lock | 10 | 300 | AVERAGE | 181.716 req/s | 53.581 | 26.676 | 28.929 |  |  |  |  |  |  |  |  |  |  |  |  |  |
-| LOAD_BALANCER | http://192.168.0.47/api | v0.3_optimistic-lock | 20 | 500 | AVERAGE | 358.772 req/s |  |  |  | 20 | 1328.692 | 3061.369 | 3713.067 | 0.178 | 50000 | 49916 | 49916 | 84 | ✅ | 105659.400 |  |  |
-| BACKEND | 192.168.0.41:8080 | v0.3_optimistic-lock | 10 | 500 | AVERAGE | 180.611 req/s | 51.842 | 24.320 | 31.517 |  |  |  |  |  |  |  |  |  |  |  |  |  |
-| BACKEND | 192.168.0.46:8080 | v0.3_optimistic-lock | 10 | 500 | AVERAGE | 180.608 req/s | 51.845 | 25.056 | 31.869 |  |  |  |  |  |  |  |  |  |  |  |  |  |
-| LOAD_BALANCER | http://192.168.0.47/api | v0.3_pessimistic-lock | 20 | 10 | AVERAGE | 318.060 req/s |  |  |  | 7.400 | 31.109 | 54.657 | 72.490 | 0.000 | 1000 | 1000 | 1000 | 0 | ✅ |  |  |  |
-| BACKEND | 192.168.0.41:8080 | v0.3_pessimistic-lock | 10 | 10 | AVERAGE | 157.046 req/s | 40.926 | 32.254 | 12.243 |  |  |  |  |  |  |  |  |  |  |  |  |  |
-| BACKEND | 192.168.0.46:8080 | v0.3_pessimistic-lock | 10 | 10 | AVERAGE | 148.454 req/s | 44.154 | 36.495 | 11.310 |  |  |  |  |  |  |  |  |  |  |  |  |  |
-| LOAD_BALANCER | http://192.168.0.47/api | v0.3_pessimistic-lock | 20 | 50 | AVERAGE | 485.306 req/s |  |  |  | 18.200 | 98.731 | 202.144 | 256.738 | 0.000 | 5000 | 5000 | 5000 | 0 | ✅ |  |  |  |
-| BACKEND | 192.168.0.41:8080 | v0.3_pessimistic-lock | 10 | 50 | AVERAGE | 254.774 req/s | 32.467 | 17.316 | 12.829 |  |  |  |  |  |  |  |  |  |  |  |  |  |
-| BACKEND | 192.168.0.46:8080 | v0.3_pessimistic-lock | 10 | 50 | AVERAGE | 253.964 req/s | 36.708 | 20.751 | 11.317 |  |  |  |  |  |  |  |  |  |  |  |  |  |
-| LOAD_BALANCER | http://192.168.0.47/api | v0.3_pessimistic-lock | 20 | 100 | AVERAGE | 511.007 req/s |  |  |  | 19.800 | 185.511 | 385.803 | 450.694 | 0.000 | 10000 | 10000 | 10000 | 0 | ✅ |  |  |  |
-| BACKEND | 192.168.0.41:8080 | v0.3_pessimistic-lock | 10 | 100 | AVERAGE | 265.303 req/s | 29.280 | 12.585 | 16.012 |  |  |  |  |  |  |  |  |  |  |  |  |  |
-| BACKEND | 192.168.0.46:8080 | v0.3_pessimistic-lock | 10 | 100 | AVERAGE | 263.624 req/s | 31.209 | 13.609 | 13.644 |  |  |  |  |  |  |  |  |  |  |  |  |  |
-| LOAD_BALANCER | http://192.168.0.47/api | v0.3_pessimistic-lock | 20 | 300 | AVERAGE | 506.906 req/s |  |  |  | 20 | 558.272 | 1197.953 | 1898.718 | 0.000 | 30000 | 30000 | 30000 | 0 | ✅ |  |  |  |
-| BACKEND | 192.168.0.41:8080 | v0.3_pessimistic-lock | 10 | 300 | AVERAGE | 256.780 req/s | 33.371 | 16.054 | 25.346 |  |  |  |  |  |  |  |  |  |  |  |  |  |
-| BACKEND | 192.168.0.46:8080 | v0.3_pessimistic-lock | 10 | 300 | AVERAGE | 257.317 req/s | 32.831 | 14.966 | 21.018 |  |  |  |  |  |  |  |  |  |  |  |  |  |
-| LOAD_BALANCER | http://192.168.0.47/api | v0.3_pessimistic-lock | 20 | 500 | AVERAGE | 507.725 req/s |  |  |  | 20 | 930.839 | 1986.360 | 2685.148 | 0.000 | 50000 | 50000 | 50000 | 0 | ✅ |  |  |  |
-| BACKEND | 192.168.0.41:8080 | v0.3_pessimistic-lock | 10 | 500 | AVERAGE | 256.267 req/s | 30.439 | 12.945 | 27.459 |  |  |  |  |  |  |  |  |  |  |  |  |  |
-| BACKEND | 192.168.0.46:8080 | v0.3_pessimistic-lock | 10 | 500 | AVERAGE | 256.267 req/s | 33.351 | 14.933 | 25.746 |  |  |  |  |  |  |  |  |  |  |  |  |  |
-
+| Record Type | Target Type | Target | Version | Hikari Max Pool Size | VU | Run | TPS (req/s) | System CPU Peak (%) | Process CPU Peak (%) | JVM Heap Peak (%) | Tomcat Available Threads Min | Tomcat Available Threads Avg | Hikari Active Peak | Avg Latency (ms) | P95 (ms) | P99 (ms) | Error Rate (%) | DB Observed Lock Waits | DB Lock Wait Total (ms) | DB Lock Wait Avg (ms) | DB Lock Wait Max (ms) | DB Lock Wait Poll Interval (s) | Redis Lock Wait Samples | Redis Lock Wait Total (ms) | Redis Lock Wait Avg (ms) | Redis Lock Wait Max (ms) | Redis Lock Timeout Count | 초기 잔량 | 사용자 총 채굴량 | Mining Log 총 채굴량 | 실제 잔량 | 정합성 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| AVERAGE | LOAD_BALANCER | http://192.168.0.47/api | v0.4 | 20 | 10 | AVERAGE | 213.416 req/s |  |  |  |  |  | 0.6 | 45.768 | 131.441 | 203.723 | 0 | 0 | 0 | 0 | 0 | 1 | 1085.082 | 42075.313 | 38.806 | 533.062 | 0 | 1000 | 1000 | 1000 | 0 | ✅ |
+| AVERAGE | BACKEND | 192.168.0.41:8080 | v0.4 |  | 10 | AVERAGE | 115.867 req/s | 39.174 | 31.649 | 13.498 | 190.8 | 197.245 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| AVERAGE | BACKEND | 192.168.0.46:8080 | v0.4 |  | 10 | AVERAGE | 115.867 req/s | 43.294 | 35.157 | 14.113 | 192.8 | 197.677 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| AVERAGE | LOAD_BALANCER | http://192.168.0.47/api | v0.4 | 20 | 50 | AVERAGE | 289.518 req/s |  |  |  |  |  | 1.2 | 162.222 | 563.566 | 912.378 | 0 | 0 | 0 | 0 | 0 | 1 | 5201.795 | 818595.301 | 157.375 | 1962.832 | 0 | 5000 | 5000 | 5000 | 0 | ✅ |
+| AVERAGE | BACKEND | 192.168.0.41:8080 | v0.4 |  | 50 | AVERAGE | 150.608 req/s | 31.515 | 20.34 | 16.2 | 149.8 | 173.749 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| AVERAGE | BACKEND | 192.168.0.46:8080 | v0.4 |  | 50 | AVERAGE | 150.608 req/s | 33.057 | 20.451 | 16.188 | 174 | 193.823 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| AVERAGE | LOAD_BALANCER | http://192.168.0.47/api | v0.4 | 20 | 100 | AVERAGE | 300.186 req/s |  |  |  |  |  | 1.6 | 311.812 | 1051.217 | 1714.346 | 0 | 0 | 0 | 0 | 0 | 1 | 10245.122 | 3144052.474 | 306.883 | 3623.164 | 0 | 10000 | 10000 | 10000 | 0 | ✅ |
+| AVERAGE | BACKEND | 192.168.0.41:8080 | v0.4 |  | 100 | AVERAGE | 153.772 req/s | 27.07 | 15.256 | 19.622 | 103.4 | 146.133 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| AVERAGE | BACKEND | 192.168.0.46:8080 | v0.4 |  | 100 | AVERAGE | 153.772 req/s | 26.287 | 13.742 | 18.861 | 121.2 | 176.992 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| AVERAGE | LOAD_BALANCER | http://192.168.0.47/api | v0.4 | 20 | 300 | AVERAGE | 294.593 req/s |  |  |  |  |  | 2 | 956.553 | 3208.057 | 4695.147 | 0 | 0 | 0 | 0 | 0 | 1 | 30273.737 | 21581329.62 | 712.873 | 9634.88 | 0 | 30000 | 30000 | 30000 | 0 | ✅ |
+| AVERAGE | BACKEND | 192.168.0.41:8080 | v0.4 |  | 300 | AVERAGE | 148.641 req/s | 27.071 | 14.44 | 28.781 | 0 | 25.702 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| AVERAGE | BACKEND | 192.168.0.46:8080 | v0.4 |  | 300 | AVERAGE | 148.641 req/s | 27.669 | 15.166 | 23.699 | 49.8 | 178.934 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| AVERAGE | LOAD_BALANCER | http://192.168.0.47/api | v0.4 | 20 | 500 | AVERAGE | 295.189 req/s |  |  |  |  |  | 1.8 | 1598.63 | 4617.073 | 6052.617 | 0 | 0 | 0 | 0 | 0 | 1 | 50280.91 | 35761052.48 | 711.225 | 11359.543 | 0 | 50000 | 50000 | 50000 | 0 | ✅ |
+| AVERAGE | BACKEND | 192.168.0.41:8080 | v0.4 |  | 500 | AVERAGE | 148.438 req/s | 26.798 | 13.887 | 32.586 | 0 | 91.574 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| AVERAGE | BACKEND | 192.168.0.46:8080 | v0.4 |  | 500 | AVERAGE | 148.424 req/s | 27.702 | 14.501 | 29.08 | 0 | 186.655 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
 </details>
 
 ---
@@ -208,6 +180,8 @@ Gold Rush Lab은 **여러 사용자가 하나의 자원을 동시에 수정하�
 - Hibernate
 - Lombok
 - Gradle 9.5.1
+- Redis
+- Kafka
 
 ### Database
 
@@ -231,32 +205,127 @@ Gold Rush Lab은 **여러 사용자가 하나의 자원을 동시에 수정하�
 ## Architecture
 
 <details>
-<summary>v0.1 실험 환경</summary>
+<summary>v0.1 ~ v0.2 실험 환경</summary>
 
 ![v0.1 실험 환경](https://github.com/yeoooo/yeoooo.github.io/blob/master/assets/images/gold-rush-lab/v0-1/environment.png?raw=true)
+- Host Machine
+    - OS: Windows 11
+    - CPU: AMD Ryzen 5 5600X
+    - Memory: 32 GB
+- Virtualization
+    - Hyper-V
+- Network
+    - External Virtual Switch, 모든 VM은 동일한 Hyper-V Virtual Switch를 사용
 
+---
+
+- APP VM-01
+    - OS: Ubuntu Server 24.04
+    - vCPU: 2
+    - Memory: 2 GB
+- DB VM
+    - OS: Ubuntu Server 24.04
+    - vCPU: 2
+    - Memory: 2 GB
+- Monitoring VM
+    - OS: Ubuntu Server 24.04
+    - vCPU: 2
+    - Memory: 2 GB
+
+---
+
+- Load Generator
+    - OS : Mac OS Tahoe(26)
+    - CPU: M1
+    - Memory: 8GB
 </details>
 
-```text
-k6 / Client
-     |
-     v
-Spring MVC Controller
-     |
-     v
-Transactional Service  -- Micrometer --> Prometheus --> Grafana
-     |
-     v
-JPA Repository
-     |
-     v
-PostgreSQL
-  ├── mine
-  ├── app_user
-  └── mining_log
-```
+<details>
+<summary>v0.3 실험 환경</summary>
 
-모든 사용자가 동일한 `mine` row를 조회하고 수정하지만 별도의 동시성 제어는 적용하지 않습니다. 이 구조를 이후 버전의 잠금 전략과 성능을 비교하는 기준선으로 사용합니다.
+![v0.3 실험 환경](https://github.com/yeoooo/yeoooo.github.io/blob/master/assets/images/gold-rush-lab/v0-3/environment.png?raw=true)
+- Host Machine
+    - OS: Windows 11
+    - CPU: AMD Ryzen 5 5600X
+    - Memory: 32 GB
+- Virtualization
+    - Hyper-V
+- Network
+    - External Virtual Switch, 모든 VM은 동일한 Hyper-V Virtual Switch를 사용
+
+---
+
+- APP VM-01, APP VM-02
+    - OS: Ubuntu Server 24.04
+    - vCPU: 2
+    - Memory: 2 GB
+- DB VM
+    - OS: Ubuntu Server 24.04
+    - vCPU: 2
+    - Memory: 2 GB
+- LB(LoadBalancer) VM
+    - OS: Ubuntu Server 24.04
+    - vCPU: 2
+    - Memory: 2 GB
+- Monitoring VM
+    - OS: Ubuntu Server 24.04
+    - vCPU: 2
+    - Memory: 2 GB
+
+---
+
+- Load Generator
+    - OS : Mac OS Tahoe(26)
+    - CPU: M1
+    - Memory: 8GB
+</details>
+
+<details>
+<summary>v0.4 실험 환경</summary>
+
+![v0.4 실험 환경](https://github.com/yeoooo/yeoooo.github.io/blob/master/assets/images/gold-rush-lab/v0-4/environment.png?raw=true)
+
+- Host Machine
+    - OS: Windows 11
+    - CPU: AMD Ryzen 5 5600X
+    - Memory: 32 GB
+- Virtualization
+    - Hyper-V
+- Network
+    - External Virtual Switch, 모든 VM은 동일한 Hyper-V Virtual Switch를 사용
+
+---
+
+- APP VM-01, APP VM-02
+    - OS: Ubuntu Server 24.04
+    - vCPU: 2
+    - Memory: 2 GB
+- DB VM
+    - OS: Ubuntu Server 24.04
+    - vCPU: 2
+    - Memory: 2 GB
+- LB(LoadBalancer) VM
+    - OS: Ubuntu Server 24.04
+    - vCPU: 2
+    - Memory: 2 GB
+- Redis VM
+    - OS: Ubuntu Server 24.04
+    - vCPU: 2
+    - Memory: 2 GB
+- Monitoring VM
+    - OS: Ubuntu Server 24.04
+    - vCPU: 2
+    - Memory: 2 GB
+
+---
+
+- Load Generator
+    - OS : Mac OS Tahoe(26)
+    - CPU: M1
+    - Memory: 8GB
+</details>
+
+
 
 ---
 
@@ -458,9 +527,9 @@ Redis 기반 분산 락을 적용합니다.
 
 - [x] Redis
 - [x] Distributed Lock
-- [ ] 동일한 벤치마크 수행
-- [ ] DB Lock 대비 성능 비교
-- [ ] 락 대기 시간 분석
+- [x] 동일한 벤치마크 수행
+- [x] DB Lock 대비 성능 비교
+- [x] 락 대기 시간 분석
 
 ### v0.5 — Event Driven
 
