@@ -55,3 +55,14 @@ CREATE TABLE mining_log
     CONSTRAINT chk_mining_log_amount
         CHECK (amount > 0)
 );
+
+CREATE TABLE processed_mining_event
+(
+    event_id         UUID PRIMARY KEY,
+    user_session_id  UUID NOT NULL,
+    mine_id          BIGINT NOT NULL,
+    mined_amount     BIGINT NOT NULL,
+    remaining_amount BIGINT NOT NULL,
+    requested_at     TIMESTAMPTZ NOT NULL,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
