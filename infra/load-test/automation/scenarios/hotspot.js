@@ -6,6 +6,10 @@ import { checkMine } from '../../lib/checks.js';
 import { config } from '../../lib/config.js';
 import { setup as commonSetup } from '../../lib/setup.js';
 
+const fixture = __ENV.SESSIONS_FILE
+    ? JSON.parse(open(__ENV.SESSIONS_FILE))
+    : null;
+
 const requests = new Counter('benchmark_requests');
 const errors = new Rate('benchmark_errors');
 const latency = new Trend('benchmark_latency', true);
@@ -29,7 +33,10 @@ export const options = {
 };
 
 export function setup() {
-    const data = commonSetup({ userCount: config.userCount });
+    const data = fixture ?? commonSetup({ userCount: config.userCount });
+    if (!Array.isArray(data.sessions) || data.sessions.length < config.userCount) {
+        throw new Error(`Expected at least ${config.userCount} pre-provisioned sessions`);
+    }
     mineId.add(data.mineId);
     return data;
 }

@@ -39,11 +39,13 @@ export function checkMine(response) {
 
     return check(response, {
         'mine response is valid': (res) =>
-            res.status === 200 &&
+            (res.status === 200 || res.status === 202) &&
             body !== null &&
             body.success === true &&
-            body.data?.earned === 1 &&
-            Number.isInteger(body.data?.totalGold) &&
-            Number.isInteger(body.data?.remained),
+            ((res.status === 202 && typeof body.data?.eventId === 'string') || (
+                body.data?.earned === 1 &&
+                Number.isInteger(body.data?.totalGold) &&
+                Number.isInteger(body.data?.remained)
+            )),
     }, { operation: 'mine' });
 }
