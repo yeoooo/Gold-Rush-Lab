@@ -34,10 +34,12 @@ public class MineServiceImpl implements MineService {
     private String configuredLockStrategy;
 
     /**
-     * Mine 생성 함수
-     * 광산의 총량을 입력하여 Mine 생성
+     * 지정한 총량을 가진 광산을 생성하는 함수.
      *
-     * @param amount
+     * 1. 입력받은 총량으로 광산 엔티티를 생성한다.
+     * 2. 광산을 저장하고 생성된 ID를 반환한다.
+     *
+     * @param amount 광산의 초기 보유량
      * @return 생성된 Mine의 Id
      */
     @Override
@@ -48,9 +50,12 @@ public class MineServiceImpl implements MineService {
     }
 
     /**
-     * 활성 Mine 조회 함수
+     * 채굴 가능한 광산 중 ID가 가장 작은 광산을 조회하는 함수.
      *
-     * @return Id 오름차순, remainingAmount > 0 인 첫번째 Mine
+     * 1. 잔량이 남은 광산을 ID 오름차순으로 조회한다.
+     * 2. 가장 먼저 발견된 광산을 반환한다.
+     *
+     * @return ID 오름차순으로 처음 발견된 잔량이 있는 광산
      */
     @Override
     @Transactional
@@ -59,12 +64,13 @@ public class MineServiceImpl implements MineService {
     }
 
     /**
-     * id 기반 Mine 조회
+     * ID로 광산을 조회하는 함수.
      *
-     * 난독화는 되어있지 않음.
+     * 1. 입력받은 ID를 Repository에 전달한다.
+     * 2. 조회된 광산을 반환한다.
      *
-     * @param id
-     * @return
+     * @param id 조회할 광산 ID
+     * @return 조회된 광산
      */
     @Override
     public MineEntity findById(Long id) {
@@ -72,15 +78,16 @@ public class MineServiceImpl implements MineService {
     }
 
     /**
-     * 채굴 함수
+     * 세션 사용자가 속한 광산을 채굴하고 관련 데이터를 한 트랜잭션에서 변경하는 함수.
      *
-     * 1. sessionId 기반 유저 조회, 유저의 금광 조회
-     * 2. 유저의 골드 증가
-     * 3. 광산의 잔량 감소
-     * 4. 로그 생성
+     * 1. 설정된 잠금 전략과 sessionId에 해당하는 사용자를 조회한다.
+     * 2. 사용자가 속한 광산의 잔량을 감소시키고 사용자 골드를 증가시킨다.
+     * 3. 채굴 로그를 저장하고 commit 이후 성공 메트릭을 기록하도록 등록한다.
+     * 4. 실패하면 예외를 분류해 실패 메트릭을 기록한 뒤 다시 던진다.
      *
-     * @param sessionId
-     * @param amount
+     * @param sessionId 채굴을 요청한 사용자 세션 ID
+     * @param amount 채굴할 양
+     * @throws RuntimeException 사용자 조회 또는 채굴과 데이터 저장에 실패한 경우
      */
     @Override
     @Transactional
@@ -104,6 +111,16 @@ public class MineServiceImpl implements MineService {
         }
     }
 
+    /**
+     * DB commit 결과에 따라 채굴 성공 또는 실패 메트릭을 기록하는 함수.
+     *
+     * 1. 트랜잭션 동기화가 비활성 상태이면 즉시 성공 메트릭을 기록한다.
+     * 2. 동기화가 활성 상태이면 트랜잭션 완료 콜백을 등록한다.
+     * 3. commit이 완료되면 성공 메트릭을 기록한다.
+     * 4. commit되지 않으면 UNKNOWN 실패 메트릭을 기록한다.
+     *
+     * @param strategy 메트릭 label에 기록할 잠금 전략
+     */
     private void recordSuccessAfterCommit(LockStrategy strategy) {
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
             // 관리되는 트랜잭션 밖에서 직접 호출된 경우 메서드가 반환되면 처리가 완료된 것으로 본다.
