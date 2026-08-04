@@ -12,6 +12,14 @@ Spring Boot Actuator의 HTTP 메트릭과 Gold Rush Lab의 비즈니스·동시�
 | `gold_rush_deadlock_total` | Counter/회 | PostgreSQL 데드락 횟수 | `strategy` |
 | `gold_rush_optimistic_lock_retry_total` | Counter/회 | 낙관적 락 충돌 후 실제 재시도 횟수 | `strategy=optimistic` |
 | `gold_rush_mining_lock_wait_seconds_*` | Timer/초 | 애플리케이션 관점의 락 획득 호출 지연 시간 | `strategy` |
+| `gold_rush_producer_mining_success_total` | Counter/회 | Kafka에 발행 완료된 채굴 요청 | 없음 |
+| `gold_rush_producer_mining_publish_seconds_*` | Timer/초 | 채굴 요청 Kafka 발행 지연 | 없음 |
+| `gold_rush_mining_end_to_end_seconds_*` | Timer/초 | API 요청부터 완료 이벤트가 app에 도착할 때까지의 시간 | 없음 |
+| `gold_rush_consumer_mining_received_total` | Counter/회 | consumer가 받은 채굴 요청 | `partition` |
+| `gold_rush_consumer_mining_db_commit_total` | Counter/회 | commit된 비중복 채굴 트랜잭션 | 없음 |
+| `gold_rush_consumer_mining_success_total` | Counter/회 | DB 처리와 완료 이벤트 발행에 성공한 요청 | 없음 |
+| `gold_rush_consumer_mining_processing_seconds_*` | Timer/초 | consumer DB 처리 지연 | 없음 |
+| `gold_rush_consumer_mining_publish_seconds_*` | Timer/초 | 완료 이벤트 발행 지연 | 없음 |
 
 `strategy`의 허용값은 `none`, `optimistic`, `pessimistic`, `redis`이며 `gold-rush.mining.lock-strategy` 설정으로 관리한다. `exception`은 `cannot_acquire_lock`, `lock_timeout`, `deadlock`, `optimistic_lock`, `unknown`으로 제한한다. 사용자 ID, 세션 ID, 광산 ID 같은 고카디널리티 값은 태그에 사용하지 않는다.
 

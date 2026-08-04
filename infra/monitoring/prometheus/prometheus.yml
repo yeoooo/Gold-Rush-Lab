@@ -37,3 +37,28 @@ scrape_configs:
         labels:
           application: "gold-rush-lb"
           environment: "local"
+
+  - job_name: "gold-rush-consumer"
+    metrics_path: "/actuator/prometheus"
+    static_configs:
+      - targets:
+          - "192.168.0.48:8080"
+        labels:
+          application: "gold-rush-consumer"
+          environment: "local"
+
+  - job_name: "gold-rush-kafka"
+    static_configs:
+      - targets:
+          - "192.168.0.43:9308"
+        labels:
+          application: "gold-rush-kafka"
+          environment: "local"
+
+  - job_name: "gold-rush-postgres"
+    static_configs:
+      - targets:
+          - "192.168.0.40:9187"
+        labels:
+          application: "gold-rush-postgres"
+          environment: "local"

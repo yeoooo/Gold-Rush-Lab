@@ -4,6 +4,12 @@ services:
     container_name: gold-rush-lb
     restart: unless-stopped
 
+    # app VM 증설과 장기 SSE 연결로 인한 파일 디스크립터 부족 방지
+    ulimits:
+      nofile:
+        soft: 65535
+        hard: 65535
+
     ports:
       - "80:80"
 

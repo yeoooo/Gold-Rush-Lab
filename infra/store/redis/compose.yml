@@ -1,0 +1,29 @@
+services:
+  gold-rush-redis:
+    image: redis:8.2-alpine
+    container_name: gold-rush-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --save
+      - "60"
+      - "1000"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - goldrush-db-network
+volumes:
+  redis-data:
+
+networks:
+  goldrush-db-network:
+    name: goldrush-db-network
