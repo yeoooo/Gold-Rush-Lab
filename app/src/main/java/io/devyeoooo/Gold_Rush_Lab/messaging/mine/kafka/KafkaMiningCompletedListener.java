@@ -1,7 +1,8 @@
-package io.devyeoooo.Gold_Rush_Lab.presentation.sse.mine;
+package io.devyeoooo.Gold_Rush_Lab.messaging.mine.kafka;
 
 import io.devyeoooo.Gold_Rush_Lab.messaging.mine.MiningCompletedEvent;
 import io.devyeoooo.Gold_Rush_Lab.observability.MiningMessagingMetrics;
+import io.devyeoooo.Gold_Rush_Lab.presentation.sse.mine.MiningCompletedPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -12,7 +13,7 @@ import tools.jackson.databind.ObjectMapper;
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class MiningCompletedKafkaListener {
+public class KafkaMiningCompletedListener {
 
     private final ObjectMapper objectMapper;
     private final MiningCompletedPublisher publisher;
