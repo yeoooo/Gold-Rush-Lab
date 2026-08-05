@@ -2,6 +2,7 @@ package io.devyeoooo.Gold_Rush_Lab_Consumer.mine.service;
 
 import io.devyeoooo.Gold_Rush_Lab_Consumer.messaging.mine.MiningCompletedEvent;
 import io.devyeoooo.Gold_Rush_Lab_Consumer.messaging.mine.MiningRequestedEvent;
+import io.devyeoooo.Gold_Rush_Lab_Consumer.mine.exception.MineDepletedException;
 import io.devyeoooo.Gold_Rush_Lab_Consumer.mine.repository.entity.MineEntity;
 import io.devyeoooo.Gold_Rush_Lab_Consumer.mine.repository.MineRepository;
 import io.devyeoooo.Gold_Rush_Lab_Consumer.mining_log.repository.entity.MiningLogEntity;
@@ -31,9 +32,10 @@ public class MiningProcessor {
      *
      * 1. eventId로 처리 이력을 조회하고 이미 처리된 요청이면 저장된 결과를 반환한다.
      * 2. sessionId로 사용자를 조회하고 요청한 광산이 사용자의 광산과 일치하는지 검증한다.
-     * 3. 광산 잔량과 사용자 골드를 변경하고 채굴 로그를 저장한다.
-     * 4. 채굴 완료 이벤트와 처리 이력을 저장한다.
-     * 5. 신규 처리 결과를 반환하고, 예외가 발생하면 전체 변경을 롤백한다.
+     * 3. 조건부 원자적 UPDATE로 광산 잔량을 감소시키고 사용자 골드를 증가시킨다.
+     * 4. 영속성 컨텍스트를 다시 조회해 최신 잔량으로 채굴 로그와 완료 이벤트를 생성한다.
+     * 5. 채굴 완료 이벤트와 처리 이력을 저장한다.
+     * 6. 신규 처리 결과를 반환하고, 예외가 발생하면 전체 변경을 롤백한다.
      *
      * @param event 처리할 채굴 요청 이벤트
      * @return 신규 처리 또는 중복 처리 여부와 채굴 완료 이벤트
@@ -54,11 +56,22 @@ public class MiningProcessor {
         if (!user.getMine().getId().equals(event.mineId())) {
             throw new IllegalArgumentException("사용자가 요청한 광산과 이벤트의 광산이 일치하지 않습니다.");
         }
-        MineEntity mine = mineRepository.findById(event.mineId())
-                .orElseThrow(() -> new IllegalStateException("광산을 찾을 수 없습니다."));
+        int updatedMine = mineRepository.decreaseRemainingAmount(event.mineId(), event.amount());
+        if (updatedMine == 0) {
+            throw new MineDepletedException(event.mineId());
+        }
 
-        mine.mine(event.amount());
-        user.addGold(event.amount());
+        int updatedUser = userRepository.increaseTotalMinedGold(
+                event.userSessionId(),
+                event.amount()
+        );
+        if (updatedUser == 0) {
+            throw new UserNotFoundException(event.userSessionId());
+        }
+
+        user = userRepository.findBySessionId(event.userSessionId())
+                .orElseThrow(() -> new UserNotFoundException(event.userSessionId()));
+        MineEntity mine = user.getMine();
         miningLogRepository.save(MiningLogEntity.create(user, mine, event.amount()));
 
         MiningCompletedEvent completed = new MiningCompletedEvent(

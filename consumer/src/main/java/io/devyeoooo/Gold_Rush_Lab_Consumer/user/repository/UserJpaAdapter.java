@@ -17,4 +17,9 @@ public class UserJpaAdapter implements UserRepository {
     public Optional<UserEntity> findBySessionId(UUID sessionId) {
         return jpaRepository.findBySessionId(sessionId);
     }
+
+    @Override
+    public int increaseTotalMinedGold(UUID sessionId, Long amount) {
+        return jpaRepository.increaseTotalMinedGold(sessionId, amount);
+    }
 }

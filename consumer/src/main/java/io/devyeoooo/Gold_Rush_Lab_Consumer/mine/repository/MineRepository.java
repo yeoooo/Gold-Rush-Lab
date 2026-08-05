@@ -5,4 +5,6 @@ import java.util.Optional;
 
 public interface MineRepository {
     Optional<MineEntity> findById(Long id);
+
+    int decreaseRemainingAmount(Long mineId, Long amount);
 }

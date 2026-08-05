@@ -16,4 +16,9 @@ public class MineJpaAdapter implements MineRepository {
     public Optional<MineEntity> findById(Long id) {
         return jpaRepository.findById(id);
     }
+
+    @Override
+    public int decreaseRemainingAmount(Long mineId, Long amount) {
+        return jpaRepository.decreaseRemainingAmount(mineId, amount);
+    }
 }

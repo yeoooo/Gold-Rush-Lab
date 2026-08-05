@@ -6,4 +6,6 @@ import java.util.UUID;
 
 public interface UserRepository {
     Optional<UserEntity> findBySessionId(UUID sessionId);
+
+    int increaseTotalMinedGold(UUID sessionId, Long amount);
 }
